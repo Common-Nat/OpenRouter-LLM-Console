@@ -8,8 +8,10 @@ from ... import repo
 from ...core.sse import sse_data
 from ...services.openrouter import stream_chat_completions, OpenRouterError
 from ...core.config import settings
+from ...core.logging_config import request_id_ctx_var
 
 router = APIRouter(prefix="", tags=["stream"])
+
 
 @router.get("/stream")
 async def stream(
@@ -105,10 +107,21 @@ async def stream(
                 else:
                     yield sse_data({"type": "raw", "data": chunk})
         except OpenRouterError as e:
-            yield sse_data({"type": "error", "status": e.status_code, "message": str(e)}, event="error")
+            yield sse_data(
+                {
+                    "type": "openrouter_error",
+                    "status": e.status_code,
+                    "message": str(e),
+                    "request_id": request_id_ctx_var.get("-"),
+                },
+                event="openrouter_error",
+            )
             return
         except Exception as e:
-            yield sse_data({"type": "error", "message": str(e)}, event="error")
+            yield sse_data(
+                {"type": "stream_error", "message": str(e), "request_id": request_id_ctx_var.get("-")},
+                event="stream_error",
+            )
             return
         finally:
             if assistant_accum.strip():

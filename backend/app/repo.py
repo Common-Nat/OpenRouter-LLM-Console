@@ -59,6 +59,30 @@ async def create_profile(db: aiosqlite.Connection, data: Dict[str, Any]) -> int:
     await db.commit()
     return cur.lastrowid
 
+async def get_profile(db: aiosqlite.Connection, profile_id: int) -> Optional[aiosqlite.Row]:
+    cur = await db.execute(
+        "SELECT id, name, system_prompt, temperature, max_tokens FROM profiles WHERE id=?",
+        (profile_id,),
+    )
+    return await cur.fetchone()
+
+async def update_profile(db: aiosqlite.Connection, profile_id: int, data: Dict[str, Any]) -> bool:
+    cur = await db.execute(
+        """
+        UPDATE profiles
+        SET name=?, system_prompt=?, temperature=?, max_tokens=?
+        WHERE id=?
+        """,
+        (data["name"], data.get("system_prompt"), data.get("temperature", 0.7), data.get("max_tokens", 2048), profile_id),
+    )
+    await db.commit()
+    return cur.rowcount > 0
+
+async def delete_profile(db: aiosqlite.Connection, profile_id: int) -> bool:
+    cur = await db.execute("DELETE FROM profiles WHERE id=?", (profile_id,))
+    await db.commit()
+    return cur.rowcount > 0
+
 async def list_profiles(db: aiosqlite.Connection) -> List[aiosqlite.Row]:
     cur = await db.execute("SELECT id, name, system_prompt, temperature, max_tokens FROM profiles ORDER BY id DESC")
     return await cur.fetchall()
@@ -78,6 +102,13 @@ async def list_sessions(db: aiosqlite.Connection, limit: int=50) -> List[aiosqli
         (limit,),
     )
     return await cur.fetchall()
+
+async def get_session(db: aiosqlite.Connection, session_id: str) -> Optional[aiosqlite.Row]:
+    cur = await db.execute(
+        "SELECT id, session_type, title, profile_id, created_at FROM sessions WHERE id=?",
+        (session_id,),
+    )
+    return await cur.fetchone()
 
 async def list_messages(db: aiosqlite.Connection, session_id: str) -> List[aiosqlite.Row]:
     cur = await db.execute(

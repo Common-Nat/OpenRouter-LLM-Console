@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import ModelSelector from "./components/ModelSelector.jsx";
+import ProfileManager from "./components/ProfileManager.jsx";
 import ChatTab from "./tabs/ChatTab.jsx";
 import CodeTab from "./tabs/CodeTab.jsx";
 import DocumentsTab from "./tabs/DocumentsTab.jsx";
@@ -10,16 +11,18 @@ const TABS = ["Chat", "Code", "Documents", "Playground"];
 export default function App() {
   const [tab, setTab] = useState("Chat");
   const [modelId, setModelId] = useState("");
+  const [profileId, setProfileId] = useState("");
+  const [profiles, setProfiles] = useState([]);
 
   const body = useMemo(() => {
     switch (tab) {
-      case "Chat": return <ChatTab modelId={modelId} />;
+      case "Chat": return <ChatTab modelId={modelId} profileId={profileId} profiles={profiles} />;
       case "Code": return <CodeTab />;
       case "Documents": return <DocumentsTab />;
       case "Playground": return <PlaygroundTab />;
       default: return null;
     }
-  }, [tab, modelId]);
+  }, [tab, modelId, profileId, profiles]);
 
   return (
     <div className="container">
@@ -38,6 +41,8 @@ export default function App() {
       <div style={{marginBottom: 12}}>
         <ModelSelector value={modelId} onChange={setModelId} />
       </div>
+
+      <ProfileManager value={profileId} onChange={setProfileId} onProfilesChange={setProfiles} />
 
       {body}
 

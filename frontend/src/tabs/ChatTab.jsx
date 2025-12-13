@@ -11,13 +11,15 @@ function useAutoScroll(dep) {
   return ref;
 }
 
-export default function ChatTab({ modelId }) {
+export default function ChatTab({ modelId, profileId, profiles = [] }) {
   const [sessionId, setSessionId] = useState("");
   const [sessions, setSessions] = useState([]);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
+
+  const selectedProfile = useMemo(() => profiles.find(p => String(p.id) === String(profileId)), [profiles, profileId]);
 
   const logRef = useAutoScroll(messages.length);
 
@@ -26,11 +28,19 @@ export default function ChatTab({ modelId }) {
     setSessions(data.filter(s => s.session_type === "chat"));
   }
 
+  function sessionLabel(session) {
+    const p = profiles.find(x => String(x.id) === String(session.profile_id));
+    const name = session.title || session.id;
+    return p ? `${name} • ${p.name}` : name;
+  }
+
   async function createSession() {
-    const s = await apiPost("/api/sessions", { session_type: "chat", title: "New chat" });
+    const profilePayload = profileId ? Number(profileId) : null;
+    const s = await apiPost("/api/sessions", { session_type: "chat", title: "New chat", profile_id: profilePayload });
     setSessionId(s.id);
     await loadSessions();
     setMessages([]);
+    return s.id;
   }
 
   async function loadMessages(id) {
@@ -43,12 +53,14 @@ export default function ChatTab({ modelId }) {
 
   async function send() {
     setError("");
-    if (!sessionId) await createSession();
     if (!modelId) { setError("Pick a model first."); return; }
     const text = draft.trim();
     if (!text) return;
 
-    const sid = sessionId || (await apiPost("/api/sessions", { session_type: "chat", title: "New chat" })).id;
+    let sid = sessionId;
+    if (!sid) {
+      sid = await createSession();
+    }
     setSessionId(sid);
 
     const userMsg = await apiPost("/api/messages", { session_id: sid, role: "user", content: text });
@@ -59,7 +71,9 @@ export default function ChatTab({ modelId }) {
     const tmpId = `tmp-${Date.now()}`;
     setMessages(m => [...m, { id: tmpId, session_id: sid, role: "assistant", content: "", created_at: new Date().toISOString() }]);
 
-    const es = new EventSource(`/api/stream?session_id=${encodeURIComponent(sid)}&model_id=${encodeURIComponent(modelId)}`);
+    const params = new URLSearchParams({ session_id: sid, model_id: modelId });
+    if (profileId) params.set("profile_id", profileId);
+    const es = new EventSource(`/api/stream?${params.toString()}`);
     setStreaming(true);
 
     es.onmessage = (e) => {
@@ -100,12 +114,13 @@ export default function ChatTab({ modelId }) {
           <select className="input" value={sessionId} onChange={(e)=>setSessionId(e.target.value)} style={{width:"100%"}}>
             <option value="">Select a session…</option>
             {sessions.map(s => (
-              <option key={s.id} value={s.id}>{s.title || s.id}</option>
+              <option key={s.id} value={s.id}>{sessionLabel(s)}</option>
             ))}
           </select>
 
           <div className="hr" />
           <div className="muted small">Model: <b>{modelId || "none"}</b></div>
+          <div className="muted small">Profile: <b>{selectedProfile ? selectedProfile.name : "none"}</b></div>
           {error && <div style={{marginTop: 10, color:"#ffb4b4"}}>{error}</div>}
         </div>
       </div>

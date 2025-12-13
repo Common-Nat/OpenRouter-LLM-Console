@@ -114,6 +114,7 @@ export default function ChatTab({ modelId, profileId, profiles = [] }) {
 
     es.addEventListener("error", (e) => {
       setError("Stream error. Check backend logs and OPENROUTER_API_KEY.");
+      finishStream();
     });
 
     es.onerror = () => {

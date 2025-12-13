@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 import aiosqlite
 from ...db import get_db
 from ... import repo
@@ -8,6 +8,10 @@ router = APIRouter(prefix="/messages", tags=["messages"])
 
 @router.post("", response_model=MessageOut)
 async def create_message(payload: MessageCreate, db: aiosqlite.Connection = Depends(get_db)):
+    session = await repo.get_session(db, payload.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
     mid = await repo.add_message(db, payload.session_id, payload.role, payload.content)
     rows = await repo.list_messages(db, payload.session_id)
     msg = next((r for r in rows if r["id"] == mid), None)

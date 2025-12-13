@@ -76,7 +76,16 @@ export default function ChatTab({ modelId, profileId, profiles = [] }) {
       streamRef.current.close();
     }
 
-    const es = new EventSource(`/api/stream?session_id=${encodeURIComponent(sid)}&model_id=${encodeURIComponent(modelId)}`);
+    const qs = new URLSearchParams({
+      session_id: sid,
+      model_id: modelId,
+    });
+
+    if (profileId) qs.set("profile_id", profileId);
+    if (selectedProfile?.temperature) qs.set("temperature", String(selectedProfile.temperature));
+    if (selectedProfile?.max_tokens) qs.set("max_tokens", String(selectedProfile.max_tokens));
+
+    const es = new EventSource(`/api/stream?${qs.toString()}`);
     streamRef.current = es;
     setStreaming(true);
 

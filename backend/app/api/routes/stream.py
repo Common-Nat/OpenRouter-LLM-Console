@@ -63,7 +63,39 @@ async def stream(
                 try:
                     obj = json.loads(chunk)
                     delta = (((obj.get("choices") or [{}])[0]).get("delta") or {})
-                    token = delta.get("content")
+
+                    content = delta.get("content")
+                    content_parts = []
+                    if isinstance(content, str):
+                        content_parts.append(content)
+                    elif isinstance(content, list):
+                        for item in content:
+                            if isinstance(item, str):
+                                content_parts.append(item)
+                            elif isinstance(item, dict):
+                                item_text = item.get("text") or item.get("content")
+                                if isinstance(item_text, str):
+                                    content_parts.append(item_text)
+
+                    token = "".join(content_parts)
+
+                    # Fall back to tool call text if no content was found
+                    if not token:
+                        tool_calls = delta.get("tool_calls") or []
+                        tool_text_parts = []
+                        if isinstance(tool_calls, list):
+                            for call in tool_calls:
+                                if not isinstance(call, dict):
+                                    continue
+                                if isinstance(call.get("function"), dict):
+                                    arguments = call["function"].get("arguments")
+                                    if isinstance(arguments, str):
+                                        tool_text_parts.append(arguments)
+                                call_text = call.get("text")
+                                if isinstance(call_text, str):
+                                    tool_text_parts.append(call_text)
+
+                        token = "".join(tool_text_parts)
                 except Exception:
                     obj = None
 

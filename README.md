@@ -48,3 +48,6 @@ Then open the UI at `http://localhost:5173`.
 cd backend
 pytest -q
 ```
+
+## License
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

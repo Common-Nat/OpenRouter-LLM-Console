@@ -125,3 +125,84 @@ async def add_message(db: aiosqlite.Connection, session_id: str, role: str, cont
     )
     await db.commit()
     return mid
+
+async def insert_usage_log(
+    db: aiosqlite.Connection,
+    *,
+    session_id: str,
+    model_id: Optional[str],
+    prompt_tokens: int = 0,
+    completion_tokens: int = 0,
+    profile_id: Optional[int] = None,
+) -> str:
+    prompt_tokens = int(prompt_tokens or 0)
+    completion_tokens = int(completion_tokens or 0)
+    total_tokens = prompt_tokens + completion_tokens
+
+    pricing_prompt = 0.0
+    pricing_completion = 0.0
+    if model_id:
+        cur = await db.execute(
+            "SELECT pricing_prompt, pricing_completion FROM models WHERE id=?",
+            (model_id,),
+        )
+        model_row = await cur.fetchone()
+        if model_row:
+            pricing_prompt = float(model_row["pricing_prompt"] or 0)
+            pricing_completion = float(model_row["pricing_completion"] or 0)
+
+    cost_usd = (
+        (prompt_tokens * pricing_prompt) + (completion_tokens * pricing_completion)
+    ) / 1_000_000
+
+    uid = _uuid()
+    await db.execute(
+        """
+        INSERT INTO usage_logs(
+            id, session_id, profile_id, model_id, prompt_tokens, completion_tokens, total_tokens, cost_usd
+        ) VALUES(?,?,?,?,?,?,?,?)
+        """,
+        (
+            uid,
+            session_id,
+            profile_id,
+            model_id,
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+            cost_usd,
+        ),
+    )
+    await db.commit()
+    return uid
+
+async def list_usage_by_session(db: aiosqlite.Connection, session_id: str) -> List[aiosqlite.Row]:
+    cur = await db.execute(
+        """
+        SELECT ul.id, ul.session_id, ul.profile_id, ul.model_id,
+               m.name AS model_name, m.openrouter_id,
+               ul.prompt_tokens, ul.completion_tokens, ul.total_tokens, ul.cost_usd, ul.created_at
+        FROM usage_logs ul
+        LEFT JOIN models m ON ul.model_id = m.id
+        WHERE ul.session_id=?
+        ORDER BY ul.created_at DESC
+        """,
+        (session_id,),
+    )
+    return await cur.fetchall()
+
+async def aggregate_usage_by_model(db: aiosqlite.Connection) -> List[aiosqlite.Row]:
+    cur = await db.execute(
+        """
+        SELECT ul.model_id, m.name AS model_name, m.openrouter_id,
+               SUM(ul.prompt_tokens) AS prompt_tokens,
+               SUM(ul.completion_tokens) AS completion_tokens,
+               SUM(ul.total_tokens) AS total_tokens,
+               SUM(ul.cost_usd) AS cost_usd
+        FROM usage_logs ul
+        LEFT JOIN models m ON ul.model_id = m.id
+        GROUP BY ul.model_id
+        ORDER BY cost_usd DESC, total_tokens DESC
+        """,
+    )
+    return await cur.fetchall()

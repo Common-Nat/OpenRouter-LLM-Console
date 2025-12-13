@@ -1,0 +1,187 @@
+Here’s a concise, repo‑ready README you can drop straight into README.md (edit project name/URLs if needed).
+
+OpenRouter LLM Console
+A self‑hosted, local‑first “multi‑model LLM console” for power users.
+This app provides a tabbed web interface (Chat, Code, Documents, Playground) for working with many different LLMs through the OpenRouter API, with streaming, profiles, and session history.​
+
+All traffic to OpenRouter goes through your own backend. The browser never holds or sends the OpenRouter API key directly.
+
+Features
+Multi‑model via OpenRouter
+
+Use GPT‑style, Claude‑style, and other models through a single OpenAI‑compatible API.​
+
+Model selector with filters (e.g. free, large context, reasoning).
+
+Local‑first & self‑hosted
+
+FastAPI backend with your API key in environment variables.
+
+SQLite database for models, profiles, sessions, and messages – no external DB required.
+
+Tabbed power‑user console
+
+Chat – classic chat UI with model/profile selector and streaming output.
+
+Code – code‑oriented prompting and monospace output, with coding‑friendly defaults.
+
+Documents – upload text/markdown files and run summarisation or Q&A.
+
+Playground – raw request builder for OpenRouter with full control over parameters.
+
+Streaming responses
+
+Backend calls OpenRouter with stream: true and exposes its own /stream SSE endpoint.​
+
+Frontend uses EventSource to render tokens as they arrive.
+
+Profiles (local presets)
+
+Save reusable profiles containing: model, temperature, max tokens, system prompt, and extra params.
+
+Profiles can target raw models or OpenRouter presets using strings like @preset/... or model@preset/....​
+
+Architecture
+Frontend
+
+React single‑page app (SPA) in frontend/, served by the backend.
+
+Components for:
+
+Tab bar: Chat / Code / Documents / Playground
+
+Model selector + filters
+
+Temperature / max tokens controls
+
+Chat area with streaming output and session history.
+
+Backend
+
+FastAPI app in backend/ using httpx for outbound OpenRouter calls and SQLite for storage.
+
+Key endpoints:
+
+POST /models/sync – Fetches OpenRouter /models list and caches relevant fields (id, name, context length, pricing, reasoning flag).​
+
+GET /models – Returns cached models with optional filters (e.g. free_only, large_context, reasoning_only).
+
+GET/POST /profiles – CRUD for local profiles (model + parameters).
+
+POST /sessions – Create a session (chat, code, documents, playground).
+
+GET /sessions/{id}/messages and POST /messages – Store and load messages.
+
+GET /stream – SSE endpoint that calls OpenRouter chat/completions with stream: true and forwards token chunks to the browser.
+
+Database (SQLite)
+Main tables (simplified):
+
+models
+
+id (PK, OpenRouter model id)
+
+name, context_length, pricing_prompt, pricing_completion
+
+Derived flags like is_free, is_reasoning
+
+Timestamps.​
+
+profiles
+
+id, name, description
+
+model_id (FK to models or raw string)
+
+temperature, max_tokens, system_prompt
+
+extra_params JSON, tab_type (chat/code/documents/playground)
+
+Timestamps.
+
+sessions
+
+id (UUID), session_type, title, profile_id
+
+Timestamps.
+
+messages
+
+id (UUID), session_id, role (user/assistant/system), content, model_used
+
+Optional token counts, timestamps.
+
+Prerequisites
+Python 3.10+
+
+Node.js + npm (or pnpm/yarn)
+
+OpenRouter account and API key.
+
+You can create and manage an API key from your OpenRouter dashboard after signing in.
+
+Setup
+1. Clone the repo
+bash
+git clone https://github.com/Common-Nat/OpenRouter-LLM-Console.git
+cd OpenRouter-LLM-Console
+2. Backend setup (FastAPI + SQLite)
+bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+Create a .env (or use environment variables) with your OpenRouter API key:
+
+bash
+export OPENROUTER_API_KEY="sk-or-xxxxx"
+Run the backend:
+
+bash
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
+On first start, the app will ensure the SQLite schema exists; you can then sync models:
+
+bash
+curl -X POST http://127.0.0.1:8000/models/sync
+This populates the models table using OpenRouter’s /models API.​
+
+3. Frontend setup (React)
+bash
+cd ../frontend
+npm install
+npm run dev
+Open the URL printed by the dev server (e.g. http://127.0.0.1:5173) in a browser.
+
+Usage
+Chat tab
+
+Pick a model or profile.
+
+Type a message; responses stream token‑by‑token.
+
+Session history is saved to SQLite under sessions + messages.​
+
+Code tab
+
+Use a coding‑optimised profile or model.
+
+Ask for code; output is shown in a monospace block with easy copying.
+
+Documents tab
+
+Upload plain text/markdown.
+
+Choose an analysis mode (summarise, Q&A, extract) and a model/profile.
+
+Playground tab
+
+Build raw OpenRouter requests: model, system prompt, temperature, top_p, stop sequences, etc.
+
+Inspect raw JSON request and response for debugging.
+
+Notes & Limitations
+This is designed for local self‑hosting and manual experimentation, not as a multi‑tenant SaaS.
+
+No user accounts or authentication are implemented yet; everything runs as a single local user.
+
+Only text/markdown documents are supported in the Documents tab (no heavy PDF parsing for now).

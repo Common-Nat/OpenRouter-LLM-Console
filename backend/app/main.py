@@ -14,6 +14,7 @@ from .api.routes.profiles import router as profiles_router
 from .api.routes.sessions import router as sessions_router
 from .api.routes.messages import router as messages_router
 from .api.routes.stream import router as stream_router
+from .api.routes.usage import router as usage_router
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -72,3 +73,4 @@ app.include_router(profiles_router, prefix="/api")
 app.include_router(sessions_router, prefix="/api")
 app.include_router(messages_router, prefix="/api")
 app.include_router(stream_router, prefix="/api")
+app.include_router(usage_router, prefix="/api")

@@ -20,6 +20,7 @@ export default function ChatTab({ modelId }) {
   const [error, setError] = useState("");
 
   const logRef = useAutoScroll(messages.length);
+  const streamRef = useRef(null);
 
   async function loadSessions() {
     const data = await apiGet("/api/sessions?limit=50");
@@ -59,14 +60,33 @@ export default function ChatTab({ modelId }) {
     const tmpId = `tmp-${Date.now()}`;
     setMessages(m => [...m, { id: tmpId, session_id: sid, role: "assistant", content: "", created_at: new Date().toISOString() }]);
 
+    if (streamRef.current) {
+      streamRef.current.close();
+    }
+
     const es = new EventSource(`/api/stream?session_id=${encodeURIComponent(sid)}&model_id=${encodeURIComponent(modelId)}`);
+    streamRef.current = es;
     setStreaming(true);
+
+    const finishStream = () => {
+      es.close();
+      if (streamRef.current === es) {
+        streamRef.current = null;
+      }
+      setStreaming(false);
+      // refresh from DB to replace tmp with saved assistant message
+      loadMessages(sid).catch(()=>{});
+    };
 
     es.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
         if (msg.type === "token") {
           setMessages(m => m.map(x => x.id === tmpId ? { ...x, content: x.content + msg.token } : x));
+        } else if (msg.type === "meta" && msg.message === "stream_end") {
+          finishStream();
+        } else if (es.readyState === EventSource.CLOSED) {
+          finishStream();
         }
       } catch { /* ignore */ }
     };
@@ -76,14 +96,20 @@ export default function ChatTab({ modelId }) {
     });
 
     es.onerror = () => {
-      es.close();
-      setStreaming(false);
-      // refresh from DB to replace tmp with saved assistant message
-      loadMessages(sid).catch(()=>{});
+      finishStream();
     };
 
     es.addEventListener("message", (e)=>{ /* already handled */ });
   }
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.close();
+        streamRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className="row wrap">

@@ -43,6 +43,24 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_session_created ON messages(session_id, created_at);
+
+CREATE TABLE IF NOT EXISTS usage_logs (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  profile_id INTEGER,
+  model_id TEXT,
+  prompt_tokens INTEGER NOT NULL DEFAULT 0,
+  completion_tokens INTEGER NOT NULL DEFAULT 0,
+  total_tokens INTEGER NOT NULL DEFAULT 0,
+  cost_usd REAL NOT NULL DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+  FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL,
+  FOREIGN KEY (model_id) REFERENCES models(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_logs_session_created ON usage_logs(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_model_created ON usage_logs(model_id, created_at);
 """
 
 async def init_db() -> None:

@@ -81,9 +81,9 @@ export default function ChatTab({ modelId, profileId, profiles = [] }) {
       model_id: modelId,
     });
 
-    if (profileId) qs.set("profile_id", profileId);
-    if (selectedProfile?.temperature) qs.set("temperature", String(selectedProfile.temperature));
-    if (selectedProfile?.max_tokens) qs.set("max_tokens", String(selectedProfile.max_tokens));
+    if (profileId !== undefined && profileId !== null) qs.set("profile_id", profileId);
+    if (selectedProfile?.temperature !== undefined && selectedProfile?.temperature !== null) qs.set("temperature", String(selectedProfile.temperature));
+    if (selectedProfile?.max_tokens !== undefined && selectedProfile?.max_tokens !== null) qs.set("max_tokens", String(selectedProfile.max_tokens));
 
     const es = new EventSource(`/api/stream?${qs.toString()}`);
     streamRef.current = es;

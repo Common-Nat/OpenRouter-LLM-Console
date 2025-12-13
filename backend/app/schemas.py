@@ -48,3 +48,35 @@ class StreamRequest(BaseModel):
     model_id: str
     temperature: float = 0.7
     max_tokens: int = 2048
+
+
+class UsageLogCreate(BaseModel):
+    session_id: str
+    model_id: Optional[str] = None
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    profile_id: Optional[int] = None
+
+
+class UsageLogOut(BaseModel):
+    id: str
+    session_id: str
+    profile_id: Optional[int] = None
+    model_id: Optional[str] = None
+    model_name: Optional[str] = None
+    openrouter_id: Optional[str] = None
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    cost_usd: float
+    created_at: str
+
+
+class ModelUsageSummary(BaseModel):
+    model_id: Optional[str] = None
+    model_name: Optional[str] = None
+    openrouter_id: Optional[str] = None
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    cost_usd: float

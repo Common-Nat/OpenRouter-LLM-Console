@@ -125,6 +125,43 @@ async def get_session(db: aiosqlite.Connection, session_id: str) -> Optional[aio
     )
     return await cur.fetchone()
 
+async def update_session(db: aiosqlite.Connection, session_id: str, data: Dict[str, Any]) -> bool:
+    """Update session fields. Returns True if session was found and updated."""
+    # Build dynamic SET clause based on provided fields
+    fields = []
+    values = []
+    
+    if "title" in data:
+        fields.append("title=?")
+        values.append(data["title"])
+    
+    if "profile_id" in data:
+        fields.append("profile_id=?")
+        values.append(data["profile_id"])
+    
+    if not fields:
+        return True  # Nothing to update
+    
+    values.append(session_id)
+    query = f"UPDATE sessions SET {', '.join(fields)} WHERE id=?"
+    
+    cur = await db.execute(query, values)
+    await db.commit()
+    return cur.rowcount > 0
+
+async def delete_session(db: aiosqlite.Connection, session_id: str) -> bool:
+    """Delete session and all related messages. Returns True if session was found and deleted."""
+    # First delete related messages (due to foreign key constraint)
+    await db.execute("DELETE FROM messages WHERE session_id=?", (session_id,))
+    
+    # Delete usage logs
+    await db.execute("DELETE FROM usage_logs WHERE session_id=?", (session_id,))
+    
+    # Then delete the session
+    cur = await db.execute("DELETE FROM sessions WHERE id=?", (session_id,))
+    await db.commit()
+    return cur.rowcount > 0
+
 async def list_messages(db: aiosqlite.Connection, session_id: str) -> List[aiosqlite.Row]:
     cur = await db.execute(
         "SELECT id, session_id, role, content, created_at FROM messages WHERE session_id=? ORDER BY created_at ASC",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 import aiosqlite
@@ -18,9 +19,9 @@ router = APIRouter(prefix="", tags=["stream"])
 async def stream(
     session_id: str = Query(...),
     model_id: str = Query(...),
-    temperature: float | None = Query(None, ge=0.0, le=2.0),
-    max_tokens: int | None = Query(None, ge=1, le=32768),
-    profile_id: int | None = Query(None),
+    temperature: Optional[float] = Query(None, ge=0.0, le=2.0),
+    max_tokens: Optional[int] = Query(None, ge=1, le=32768),
+    profile_id: Optional[int] = Query(None),
     db: aiosqlite.Connection = Depends(get_db),
 ):
     if not settings.openrouter_api_key:

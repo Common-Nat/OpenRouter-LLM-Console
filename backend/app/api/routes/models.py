@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 import aiosqlite
 
@@ -39,9 +40,9 @@ def _to_float(v):
 
 @router.get("", response_model=list[ModelOut])
 async def list_models(
-    reasoning: bool | None = Query(default=None),
-    max_price: float | None = Query(default=None, ge=0),
-    min_context: int | None = Query(default=None, ge=1),
+    reasoning: Optional[bool] = Query(default=None),
+    max_price: Optional[float] = Query(default=None, ge=0),
+    min_context: Optional[int] = Query(default=None, ge=1),
     db: aiosqlite.Connection = Depends(get_db),
 ):
     rows = await repo.list_models(db, reasoning=reasoning, max_price=max_price, min_context=min_context)

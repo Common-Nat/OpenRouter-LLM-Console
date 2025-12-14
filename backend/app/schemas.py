@@ -25,6 +25,10 @@ class SessionCreate(BaseModel):
     title: Optional[str] = None
     profile_id: Optional[int] = None
 
+class SessionUpdate(BaseModel):
+    title: Optional[str] = None
+    profile_id: Optional[int] = None
+
 class SessionOut(BaseModel):
     id: str
     session_type: str

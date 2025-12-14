@@ -47,6 +47,9 @@ env/
 *.sqlite3
 console.db
 
+# Backups
+backups/
+
 # Logs
 *.log
 logs/

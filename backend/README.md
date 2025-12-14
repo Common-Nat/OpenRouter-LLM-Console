@@ -22,6 +22,7 @@ Self-hosted FastAPI backend for the OpenRouter LLM Console. Provides REST API an
 - `stream.py` - SSE streaming endpoint
 - `usage.py` - Token usage and cost tracking
 - `documents.py` - Document upload and Q&A
+- `admin.py` - Backup and restore operations
 
 **Services** (`app/services/`):
 - `openrouter.py` - OpenRouter API client with streaming support
@@ -221,6 +222,43 @@ async def my_stream():
     yield sse_data({"done": True}, event="done")
 ```
 
+## Backup & Restore
+
+Backup and restore functionality is essential for local-first data safety:
+
+### Creating Backups
+
+```bash
+# Download database backup via API
+curl -O http://localhost:8000/api/admin/backup
+
+# List all backups
+curl http://localhost:8000/api/admin/backups
+```
+
+Backups are stored in `./backups/` with timestamped filenames like `console_backup_2025-12-14_15-30-45.db`.
+
+### Restoring from Backup
+
+**Via API:**
+```bash
+curl -X POST http://localhost:8000/api/admin/restore \
+  -F "file=@console_backup_2025-12-14_15-30-45.db"
+```
+
+**Manual restore:**
+1. Stop the server
+2. Replace `console.db` with your backup file
+3. Restart the server
+
+**Important:** The API creates a safety backup before restoring (stored as `console_backup_before_restore_*.db`).
+
+### Migrating Between Machines
+
+1. Download backup from source machine: `GET /api/admin/backup`
+2. Copy backup file to destination machine
+3. On destination machine, restore via API or replace `console.db` manually
+
 ## Security
 
 - **Path Traversal Protection**: Document operations use `.resolve()` and `.relative_to()` checks
@@ -229,6 +267,7 @@ async def my_stream():
 - **File Upload Limits**: 10MB max, validated extensions
 - **Foreign Keys**: Database integrity with CASCADE/SET NULL
 - **CORS**: Configurable allowed origins
+- **Backup Validation**: SQLite integrity checks on restore operations
 
 ## Production Deployment
 

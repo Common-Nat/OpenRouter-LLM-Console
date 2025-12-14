@@ -1,35 +1,74 @@
+import logger from '../services/logger.js';
+import { parseApiError } from '../utils/errorHandling.js';
+
 export async function apiGet(path) {
-  const r = await fetch(path, { headers: { "Accept": "application/json" } });
-  if (!r.ok) throw new Error(await safeText(r));
-  return r.json();
+  try {
+    const r = await fetch(path, { headers: { "Accept": "application/json" } });
+    if (!r.ok) {
+      const error = await parseApiError(r);
+      logger.apiError(error, path, 'GET');
+      throw new Error(error.message);
+    }
+    return r.json();
+  } catch (err) {
+    if (err.message) throw err;
+    logger.error('API GET request failed', { path, error: err });
+    throw new Error('Network error');
+  }
 }
 
 export async function apiPost(path, body) {
-  const r = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Accept": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error(await safeText(r));
-  return r.json();
+  try {
+    const r = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const error = await parseApiError(r);
+      logger.apiError(error, path, 'POST');
+      throw new Error(error.message);
+    }
+    return r.json();
+  } catch (err) {
+    if (err.message) throw err;
+    logger.error('API POST request failed', { path, error: err });
+    throw new Error('Network error');
+  }
 }
 
 export async function apiPut(path, body) {
-  const r = await fetch(path, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", "Accept": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error(await safeText(r));
-  return r.json();
+  try {
+    const r = await fetch(path, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const error = await parseApiError(r);
+      logger.apiError(error, path, 'PUT');
+      throw new Error(error.message);
+    }
+    return r.json();
+  } catch (err) {
+    if (err.message) throw err;
+    logger.error('API PUT request failed', { path, error: err });
+    throw new Error('Network error');
+  }
 }
 
 export async function apiDelete(path) {
-  const r = await fetch(path, { method: "DELETE", headers: { "Accept": "application/json" } });
-  if (!r.ok) throw new Error(await safeText(r));
-  return r.text();
-}
-
-async function safeText(r) {
-  try { return await r.text(); } catch { return `${r.status}`; }
+  try {
+    const r = await fetch(path, { method: "DELETE", headers: { "Accept": "application/json" } });
+    if (!r.ok) {
+      const error = await parseApiError(r);
+      logger.apiError(error, path, 'DELETE');
+      throw new Error(error.message);
+    }
+    return r.text();
+  } catch (err) {
+    if (err.message) throw err;
+    logger.error('API DELETE request failed', { path, error: err });
+    throw new Error('Network error');
+  }
 }

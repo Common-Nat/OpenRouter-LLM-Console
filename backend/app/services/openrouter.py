@@ -1,8 +1,14 @@
 from __future__ import annotations
+import asyncio
+import json
 import logging
 import httpx
-from typing import Any, AsyncIterator, Dict, List
+from typing import Any, AsyncIterator, Dict, List, Optional
+import aiosqlite
 from ..core.config import settings
+from ..core.sse import sse_data
+from ..core.logging_config import request_id_ctx_var
+from .. import repo
 
 logger = logging.getLogger(__name__)
 
@@ -100,3 +106,157 @@ async def stream_chat_completions(
                         "status_code": resp.status_code,
                     },
                 )
+
+
+async def process_streaming_response(
+    *,
+    session_id: str,
+    resolved_model_id: str,
+    messages: List[Dict[str, str]],
+    resolved_temperature: float,
+    resolved_max_tokens: int,
+    resolved_profile_id: Optional[int],
+    db: aiosqlite.Connection,
+    start_event_data: Optional[Dict[str, Any]] = None,
+) -> AsyncIterator[str]:
+    """
+    Unified streaming response processor for OpenRouter chat completions.
+    
+    Handles token parsing, usage tracking, error handling, and database persistence.
+    Yields SSE-formatted events: start, token, error, done.
+    """
+    assistant_accum = ""
+    usage_counts = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    
+    # Emit start event
+    start_data = start_event_data or {"message": "stream_start"}
+    yield sse_data(start_data, event="start")
+
+    try:
+        async for line in stream_chat_completions(
+            model=resolved_model_id,
+            messages=messages,
+            temperature=resolved_temperature,
+            max_tokens=resolved_max_tokens,
+        ):
+            if not line:
+                continue
+            
+            # Strip "data: " prefix if present
+            if line.startswith("data: "):
+                chunk = line[len("data: "):].strip()
+            else:
+                chunk = line.strip()
+
+            if chunk == "[DONE]":
+                break
+
+            token = None
+            obj = None
+
+            try:
+                obj = json.loads(chunk)
+                delta = (((obj.get("choices") or [{}])[0]).get("delta") or {})
+
+                # Extract usage information
+                usage = obj.get("usage") or delta.get("usage") or ((obj.get("choices") or [{}])[0].get("usage"))
+                if isinstance(usage, dict):
+                    usage_counts["prompt_tokens"] = int(usage.get("prompt_tokens") or usage_counts["prompt_tokens"] or 0)
+                    usage_counts["completion_tokens"] = int(
+                        usage.get("completion_tokens") or usage_counts["completion_tokens"] or 0
+                    )
+                    usage_counts["total_tokens"] = int(
+                        usage.get("total_tokens")
+                        or usage_counts["total_tokens"]
+                        or usage_counts["prompt_tokens"] + usage_counts["completion_tokens"]
+                    )
+
+                # Extract content from various formats
+                content = delta.get("content")
+                content_parts = []
+                if isinstance(content, str):
+                    content_parts.append(content)
+                elif isinstance(content, list):
+                    for item in content:
+                        if isinstance(item, str):
+                            content_parts.append(item)
+                        elif isinstance(item, dict):
+                            item_text = item.get("text") or item.get("content")
+                            if isinstance(item_text, str):
+                                content_parts.append(item_text)
+
+                token = "".join(content_parts)
+
+                # Fallback: check for tool calls
+                if not token:
+                    tool_calls = delta.get("tool_calls") or []
+                    tool_text_parts = []
+                    if isinstance(tool_calls, list):
+                        for call in tool_calls:
+                            if not isinstance(call, dict):
+                                continue
+                            if isinstance(call.get("function"), dict):
+                                arguments = call["function"].get("arguments")
+                                if isinstance(arguments, str):
+                                    tool_text_parts.append(arguments)
+                            call_text = call.get("text")
+                            if isinstance(call_text, str):
+                                tool_text_parts.append(call_text)
+
+                    token = "".join(tool_text_parts)
+            except Exception:
+                obj = None
+
+            # Yield token or raw chunk
+            if token:
+                assistant_accum += token
+                yield sse_data({"token": token}, event="token")
+            else:
+                yield sse_data({"raw": chunk}, event="token")
+                
+    except asyncio.CancelledError:
+        return
+    except OpenRouterError as e:
+        yield sse_data(
+            {
+                "status": e.status_code,
+                "message": str(e),
+                "request_id": request_id_ctx_var.get("-"),
+            },
+            event="error",
+        )
+        return
+    except Exception as e:
+        yield sse_data(
+            {"status": 500, "message": str(e), "request_id": request_id_ctx_var.get("-")},
+            event="error",
+        )
+        return
+    else:
+        # Save assistant message if content exists
+        if assistant_accum.strip():
+            await repo.add_message(db, session_id, "assistant", assistant_accum)
+
+        # Log usage
+        await repo.insert_usage_log(
+            db,
+            session_id=session_id,
+            model_id=resolved_model_id,
+            prompt_tokens=usage_counts["prompt_tokens"],
+            completion_tokens=usage_counts["completion_tokens"],
+            profile_id=resolved_profile_id,
+        )
+
+        # Emit done event with optional extra data
+        done_data = {
+            "message": "stream_end",
+            "assistant": assistant_accum,
+            "usage": usage_counts,
+        }
+        if start_event_data:
+            # Propagate any extra fields from start event (e.g., session_id, document_id)
+            for key in start_event_data:
+                if key not in done_data and key != "message":
+                    done_data[key] = start_event_data[key]
+        
+        yield sse_data(done_data, event="done")

@@ -4,8 +4,9 @@ import asyncio
 import json
 
 import aiosqlite
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File
 from fastapi.responses import StreamingResponse
+from pathlib import Path as PathLib
 
 from ... import repo
 from ...core.config import settings
@@ -18,10 +19,94 @@ from ...services.openrouter import OpenRouterError, stream_chat_completions
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
+# Allowed file extensions for uploads
+ALLOWED_EXTENSIONS = {".txt", ".md", ".py", ".js", ".json", ".xml", ".html", ".css", ".java", ".cpp", ".c", ".h", ".ts", ".jsx", ".tsx", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".log", ".csv"}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+@router.post("/upload", response_model=DocumentOut)
+async def upload_document(file: UploadFile = File(...)):
+    """Upload a text document for Q&A analysis"""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+    
+    # Validate file extension
+    file_ext = PathLib(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid file type. Allowed extensions: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+        )
+    
+    # Read file content and check size
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE / 1024 / 1024:.0f} MB"
+        )
+    
+    # Ensure uploads directory exists
+    uploads_dir = PathLib(settings.uploads_dir).expanduser()
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Sanitize filename to prevent path traversal
+    safe_filename = PathLib(file.filename).name
+    file_path = uploads_dir / safe_filename
+    
+    # If file exists, append a number to make it unique
+    if file_path.exists():
+        base_name = file_path.stem
+        extension = file_path.suffix
+        counter = 1
+        while file_path.exists():
+            safe_filename = f"{base_name}_{counter}{extension}"
+            file_path = uploads_dir / safe_filename
+            counter += 1
+    
+    # Write file
+    try:
+        file_path.write_bytes(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    
+    # Return document metadata
+    stat = file_path.stat()
+    from datetime import datetime
+    return DocumentOut(
+        id=safe_filename,
+        name=safe_filename,
+        size=stat.st_size,
+        created_at=datetime.fromtimestamp(stat.st_mtime).isoformat()
+    )
+
 
 @router.get("", response_model=list[DocumentOut])
 async def get_documents():
     return list_documents()
+
+
+@router.delete("/{document_id}")
+async def delete_document(document_id: str = Path(..., description="Identifier of the uploaded document (filename)")):
+    """Delete an uploaded document"""
+    uploads_dir = PathLib(settings.uploads_dir).expanduser()
+    file_path = (uploads_dir / document_id).resolve()
+    
+    # Prevent path traversal attacks
+    try:
+        file_path.relative_to(uploads_dir.resolve())
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    try:
+        file_path.unlink()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
+    
+    return {"message": "Document deleted successfully", "id": document_id}
 
 
 @router.post("/{document_id}/qa")

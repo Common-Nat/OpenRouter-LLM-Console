@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 import aiosqlite
 from ...db import get_db
 from ... import repo
 from ...schemas import MessageCreate, MessageOut
+from ...core.ratelimit import limiter, RATE_LIMITS
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
 @router.post("", response_model=MessageOut)
-async def create_message(payload: MessageCreate, db: aiosqlite.Connection = Depends(get_db)):
+@limiter.limit(RATE_LIMITS["messages"])
+async def create_message(request: Request, payload: MessageCreate, db: aiosqlite.Connection = Depends(get_db)):
     session = await repo.get_session(db, payload.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")

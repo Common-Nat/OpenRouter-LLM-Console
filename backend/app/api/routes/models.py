@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 import aiosqlite
 
 from ...db import get_db
@@ -7,11 +7,13 @@ from ... import repo
 from ...schemas import ModelOut
 from ...services import openrouter
 from ...core.config import settings
+from ...core.ratelimit import limiter, RATE_LIMITS
 
 router = APIRouter(prefix="/models", tags=["models"])
 
 @router.post("/sync")
-async def sync_models(db: aiosqlite.Connection = Depends(get_db)):
+@limiter.limit(RATE_LIMITS["model_sync"])
+async def sync_models(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     if not settings.openrouter_api_key:
         raise HTTPException(status_code=400, detail="OPENROUTER_API_KEY is not set")
 
@@ -39,7 +41,9 @@ def _to_float(v):
         return None
 
 @router.get("", response_model=list[ModelOut])
+@limiter.limit(RATE_LIMITS["models_list"])
 async def list_models(
+    request: Request,
     reasoning: Optional[bool] = Query(default=None),
     max_price: Optional[float] = Query(default=None, ge=0),
     min_context: Optional[int] = Query(default=None, ge=1),

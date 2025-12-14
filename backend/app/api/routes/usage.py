@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 import aiosqlite
 
 from ...db import get_db
 from ... import repo
 from ...schemas import ModelUsageSummary, UsageLogCreate, UsageLogOut
+from ...core.ratelimit import limiter, RATE_LIMITS
 
 
 router = APIRouter(prefix="/usage", tags=["usage"])
@@ -21,7 +22,8 @@ async def create_usage_log(payload: UsageLogCreate, db: aiosqlite.Connection = D
 
 
 @router.get("/sessions/{session_id}", response_model=list[UsageLogOut])
-async def usage_by_session(session_id: str, db: aiosqlite.Connection = Depends(get_db)):
+@limiter.limit(RATE_LIMITS["usage_logs"])
+async def usage_by_session(request: Request, session_id: str, db: aiosqlite.Connection = Depends(get_db)):
     rows = await repo.list_usage_by_session(db, session_id)
     return [dict(r) for r in rows]
 

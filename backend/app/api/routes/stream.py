@@ -1,6 +1,5 @@
-from __future__ import annotations
 from typing import AsyncIterator, Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 import aiosqlite
 from ...db import get_db
@@ -9,6 +8,7 @@ from ...services.openrouter import process_streaming_response
 from ...core.config import settings
 from ...core.sse import sse_data
 from ...core.logging_config import request_id_ctx_var
+from ...core.ratelimit import limiter, RATE_LIMITS
 
 router = APIRouter(prefix="", tags=["stream"])
 
@@ -26,7 +26,9 @@ async def _error_stream(status: int, message: str) -> AsyncIterator[str]:
 
 
 @router.get("/stream")
+@limiter.limit(RATE_LIMITS["stream"])
 async def stream(
+    request: Request,
     session_id: str = Query(...),
     model_id: str = Query(...),
     temperature: Optional[float] = Query(None, ge=0.0, le=2.0),

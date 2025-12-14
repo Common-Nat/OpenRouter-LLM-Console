@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     uploads_dir: str = Field(default="./uploads", alias="UPLOADS_DIR")
 
     openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
+    
+    # Rate limiting configuration (requests per time period)
+    rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+    rate_limit_stream: str = Field(default="20 per minute", alias="RATE_LIMIT_STREAM")
+    rate_limit_model_sync: str = Field(default="5 per hour", alias="RATE_LIMIT_MODEL_SYNC")
+    rate_limit_upload: str = Field(default="30 per minute", alias="RATE_LIMIT_UPLOAD")
 
     @field_validator('openrouter_api_key')
     @classmethod

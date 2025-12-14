@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 import aiosqlite
 from ...db import get_db
 from ... import repo
 from ...schemas import SessionCreate, SessionUpdate, SessionOut, MessageOut
+from ...core.ratelimit import limiter, RATE_LIMITS
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 @router.post("", response_model=SessionOut)
-async def create_session(payload: SessionCreate, db: aiosqlite.Connection = Depends(get_db)):
+@limiter.limit(RATE_LIMITS["sessions"])
+async def create_session(request: Request, payload: SessionCreate, db: aiosqlite.Connection = Depends(get_db)):
     sid = await repo.create_session(db, payload.model_dump())
     # fetch created row
     rows = await repo.list_sessions(db, limit=1)

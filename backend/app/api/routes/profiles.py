@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 import aiosqlite
 from ...db import get_db
 from ... import repo
 from ...schemas import ProfileCreate, ProfileOut
+from ...core.ratelimit import limiter, RATE_LIMITS
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
 @router.post("", response_model=ProfileOut)
-async def create_profile(payload: ProfileCreate, db: aiosqlite.Connection = Depends(get_db)):
+@limiter.limit(RATE_LIMITS["profiles"])
+async def create_profile(request: Request, payload: ProfileCreate, db: aiosqlite.Connection = Depends(get_db)):
     pid = await repo.create_profile(db, payload.model_dump())
     return {"id": pid, **payload.model_dump()}
 

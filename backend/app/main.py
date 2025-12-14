@@ -4,9 +4,12 @@ import time
 import uuid
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from .core.config import settings
 from .core.logging_config import configure_logging, request_id_ctx_var
+from .core.ratelimit import limiter
 from .db import init_db
 from .api.routes.health import router as health_router
 from .api.routes.models import router as models_router
@@ -28,6 +31,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=settings.app_title, lifespan=lifespan)
+
+# Register rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,

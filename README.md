@@ -97,6 +97,18 @@ Main tables:
 
 All tables use foreign keys with proper cascade/set null behavior. Database schema is initialized automatically on first startup with migration support.
 
+### Security Features
+- **Rate Limiting** – IP-based rate limiting on all endpoints to prevent abuse and protect against DDoS attacks
+  - Critical endpoints (streaming, model sync): Strict limits
+  - Standard endpoints (CRUD operations): Moderate limits
+  - Read-only endpoints: Lenient limits
+  - Returns HTTP 429 with retry information when limits exceeded
+  - See [RATE_LIMITING.md](backend/RATE_LIMITING.md) for detailed configuration
+- **CORS Protection** – Configurable allowed origins to prevent unauthorized access
+- **Path Traversal Protection** – Filename sanitization for document uploads
+- **API Key Security** – OpenRouter API key never exposed to browser, validated on startup
+- **Input Validation** – Pydantic schemas validate all requests
+
 ## Prerequisites
 
 - **Python 3.10+** (for backend) – Tested with Python 3.9+, recommended 3.10+
@@ -145,6 +157,15 @@ Or simply copy the example file:
 ```bash
 cp env.example .env
 # Then edit .env and add your OPENROUTER_API_KEY
+```
+
+**Rate Limiting (Optional):** The application includes IP-based rate limiting enabled by default. To customize:
+```bash
+# Add to .env (optional - defaults shown)
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_STREAM=20 per minute
+RATE_LIMIT_MODEL_SYNC=5 per hour
+RATE_LIMIT_UPLOAD=30 per minute
 ```
 
 Run the backend:

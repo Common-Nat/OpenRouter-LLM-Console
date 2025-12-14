@@ -1,7 +1,5 @@
-from __future__ import annotations
-
 import aiosqlite
-from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Request
 from fastapi.responses import StreamingResponse
 from pathlib import Path as PathLib
 
@@ -11,6 +9,7 @@ from ...db import get_db
 from ...schemas import DocumentOut, DocumentQARequest
 from ...services.documents import list_documents, load_document
 from ...services.openrouter import process_streaming_response
+from ...core.ratelimit import limiter, RATE_LIMITS
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -20,7 +19,8 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @router.post("/upload", response_model=DocumentOut)
-async def upload_document(file: UploadFile = File(...)):
+@limiter.limit(RATE_LIMITS["document_upload"])
+async def upload_document(request: Request, file: UploadFile = File(...)):
     """Upload a text document for Q&A analysis"""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")

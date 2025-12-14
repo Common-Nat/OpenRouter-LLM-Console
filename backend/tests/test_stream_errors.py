@@ -2,10 +2,12 @@
 Tests for stream error handling scenarios.
 """
 import pytest
+import tempfile
+import os
 from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from app.main import app
-from app.db import init_db
+from app.core.config import settings
 from app import repo
 from app.services.openrouter import OpenRouterError
 
@@ -16,10 +18,30 @@ async def client():
         yield ac
 
 
-@pytest.fixture(autouse=True)
-async def setup_db():
-    """Initialize in-memory database for tests."""
-    await init_db(":memory:")
+@pytest.fixture(scope="function", autouse=True)
+async def setup_test_db():
+    """Create a temporary database for each test."""
+    # Create a temporary database file
+    fd, temp_db = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    
+    # Override the DB_PATH setting
+    original_db_path = settings.db_path
+    settings.db_path = temp_db
+    
+    # Import db module to force reinitialization
+    from app import db
+    # Initialize database
+    await db.init_db()
+    
+    yield
+    
+    # Cleanup
+    settings.db_path = original_db_path
+    try:
+        os.unlink(temp_db)
+    except:
+        pass
 
 
 @pytest.mark.asyncio
@@ -66,7 +88,7 @@ async def test_stream_profile_not_found(client: AsyncClient):
     # Create a session first
     from app.db import get_db
     async for db in get_db():
-        session_id = await repo.create_session(db, "test-session")
+        session_id = await repo.create_session(db, {"session_type": "chat", "title": "test-session"})
         
         response = await client.get(
             "/api/stream",
@@ -91,7 +113,7 @@ async def test_stream_openrouter_error():
     from app.db import get_db
     
     async for db in get_db():
-        session_id = await repo.create_session(db, "test-session")
+        session_id = await repo.create_session(db, {"session_type": "chat", "title": "test-session"})
         
         with patch(
             "app.services.openrouter.stream_chat_completions",
@@ -125,7 +147,7 @@ async def test_stream_unexpected_error():
     from app.db import get_db
     
     async for db in get_db():
-        session_id = await repo.create_session(db, "test-session")
+        session_id = await repo.create_session(db, {"session_type": "chat", "title": "test-session"})
         
         with patch(
             "app.services.openrouter.stream_chat_completions",

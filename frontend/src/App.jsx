@@ -20,7 +20,7 @@ export default function App() {
     switch (tab) {
       case "Chat": return <ChatTab modelId={modelId} profileId={profileId} profiles={profiles} selectedProfile={selectedProfile} />;
       case "Code": return <CodeTab modelId={modelId} profile={selectedProfile} />;
-      case "Documents": return <DocumentsTab />;
+      case "Documents": return <DocumentsTab modelId={modelId} profileId={profileId} profiles={profiles} selectedProfile={selectedProfile} />;
       case "Playground": return <PlaygroundTab />;
       default: return null;
     }

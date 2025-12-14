@@ -10,6 +10,14 @@ async def upsert_models(db: aiosqlite.Connection, rows: List[Dict[str, Any]]) ->
     # rows: {openrouter_id, name, context_length, pricing_prompt, pricing_completion, is_reasoning}
     count = 0
     for r in rows:
+        # Check if model already exists to preserve its UUID
+        cur = await db.execute(
+            "SELECT id FROM models WHERE openrouter_id = ?",
+            (r["openrouter_id"],)
+        )
+        existing = await cur.fetchone()
+        model_id = existing["id"] if existing else _uuid()
+        
         await db.execute(
             """            INSERT INTO models(id, openrouter_id, name, context_length, pricing_prompt, pricing_completion, is_reasoning)
             VALUES(?, ?, ?, ?, ?, ?, ?)
@@ -21,7 +29,7 @@ async def upsert_models(db: aiosqlite.Connection, rows: List[Dict[str, Any]]) ->
               is_reasoning=excluded.is_reasoning
             """,
             (
-                _uuid(),
+                model_id,
                 r["openrouter_id"],
                 r["name"],
                 r.get("context_length"),

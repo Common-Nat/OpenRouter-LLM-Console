@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     app_title: str = Field(default="OpenRouter LLM Console", alias="APP_TITLE")
     app_origins: str = Field(default="http://localhost:5173", alias="APP_ORIGINS")
     db_path: str = Field(default="./console.db", alias="DB_PATH")
+    uploads_dir: str = Field(default="./uploads", alias="UPLOADS_DIR")
 
     openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
     openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1", alias="OPENROUTER_BASE_URL")

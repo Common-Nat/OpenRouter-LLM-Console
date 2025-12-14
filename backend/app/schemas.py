@@ -81,3 +81,19 @@ class ModelUsageSummary(BaseModel):
     completion_tokens: int
     total_tokens: int
     cost_usd: float
+
+
+class DocumentOut(BaseModel):
+    id: str
+    name: str
+    size: int
+    created_at: str
+
+
+class DocumentQARequest(BaseModel):
+    question: str = Field(min_length=1)
+    model_id: str
+    session_id: Optional[str] = None
+    profile_id: Optional[int] = None
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=2048, ge=1, le=32768)

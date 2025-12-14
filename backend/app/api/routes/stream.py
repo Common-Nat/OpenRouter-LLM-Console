@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+from typing import AsyncIterator, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 import aiosqlite
@@ -7,8 +7,22 @@ from ...db import get_db
 from ... import repo
 from ...services.openrouter import process_streaming_response
 from ...core.config import settings
+from ...core.sse import sse_data
+from ...core.logging_config import request_id_ctx_var
 
 router = APIRouter(prefix="", tags=["stream"])
+
+
+async def _error_stream(status: int, message: str) -> AsyncIterator[str]:
+    """Helper to yield SSE error event instead of raising HTTPException for streams."""
+    yield sse_data(
+        {
+            "status": status,
+            "message": message,
+            "request_id": request_id_ctx_var.get("-"),
+        },
+        event="error",
+    )
 
 
 @router.get("/stream")
@@ -20,19 +34,30 @@ async def stream(
     profile_id: Optional[int] = Query(None),
     db: aiosqlite.Connection = Depends(get_db),
 ):
+    # Validation: return SSE error events instead of HTTPException
+    # so EventSource receives proper error events, not HTTP errors
     if not settings.openrouter_api_key:
-        raise HTTPException(status_code=400, detail="OPENROUTER_API_KEY is not set")
+        return StreamingResponse(
+            _error_stream(400, "OPENROUTER_API_KEY is not configured"),
+            media_type="text/event-stream",
+        )
 
     session = await repo.get_session(db, session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        return StreamingResponse(
+            _error_stream(404, "Session not found"),
+            media_type="text/event-stream",
+        )
 
     resolved_profile_id = profile_id if profile_id is not None else session["profile_id"]
     profile = None
     if resolved_profile_id is not None:
         profile = await repo.get_profile(db, int(resolved_profile_id))
         if not profile:
-            raise HTTPException(status_code=404, detail="Profile not found")
+            return StreamingResponse(
+                _error_stream(404, "Profile not found"),
+                media_type="text/event-stream",
+            )
 
     resolved_temperature = temperature if temperature is not None else (profile["temperature"] if profile else 0.7)
     resolved_max_tokens = max_tokens if max_tokens is not None else (profile["max_tokens"] if profile else 2048)

@@ -21,8 +21,10 @@ class OpenRouterError(RuntimeError):
 
 def _headers() -> Dict[str, str]:
     if not settings.openrouter_api_key:
-        # allow boot without key; calls will fail with explicit error
-        return {}
+        raise ValueError(
+            "OPENROUTER_API_KEY is not configured. "
+            "Set the OPENROUTER_API_KEY environment variable."
+        )
     return {
         "Authorization": f"Bearer {settings.openrouter_api_key}",
         "HTTP-Referer": settings.openrouter_http_referer,
@@ -215,20 +217,53 @@ async def process_streaming_response(
                 yield sse_data({"raw": chunk}, event="token")
                 
     except asyncio.CancelledError:
+        logger.info(
+            "Stream cancelled by client",
+            extra={
+                "action": "stream_cancelled",
+                "session_id": session_id,
+                "model": resolved_model_id,
+            },
+        )
         return
     except OpenRouterError as e:
+        logger.error(
+            f"OpenRouter API error: {e}",
+            extra={
+                "action": "stream_error",
+                "error_type": "openrouter_error",
+                "status_code": e.status_code,
+                "session_id": session_id,
+                "model": resolved_model_id,
+            },
+        )
         yield sse_data(
             {
                 "status": e.status_code,
                 "message": str(e),
+                "error": "openrouter_error",
                 "request_id": request_id_ctx_var.get("-"),
             },
             event="error",
         )
         return
     except Exception as e:
+        logger.exception(
+            "Unexpected error during stream processing",
+            extra={
+                "action": "stream_error",
+                "error_type": "internal_error",
+                "session_id": session_id,
+                "model": resolved_model_id,
+            },
+        )
         yield sse_data(
-            {"status": 500, "message": str(e), "request_id": request_id_ctx_var.get("-")},
+            {
+                "status": 500,
+                "message": f"Internal server error: {str(e)}",
+                "error": "internal_error",
+                "request_id": request_id_ctx_var.get("-"),
+            },
             event="error",
         )
         return

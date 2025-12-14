@@ -18,4 +18,6 @@ async def test_create_message_invalid_session(monkeypatch, tmp_path):
         )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Session not found"
+    error_data = response.json()
+    assert error_data["error_code"] == "SESSION_NOT_FOUND"
+    assert "not found" in error_data["message"].lower()

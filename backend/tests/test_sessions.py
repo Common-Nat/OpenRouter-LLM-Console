@@ -61,7 +61,9 @@ async def test_get_nonexistent_session():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.get("/api/sessions/nonexistent-id-12345")
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
+        error_data = response.json()
+        assert error_data["error_code"] == "SESSION_NOT_FOUND"
+        assert "not found" in error_data["message"].lower()
 
 
 @pytest.mark.asyncio

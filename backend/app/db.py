@@ -57,8 +57,11 @@ async def _run_migrations(db: aiosqlite.Connection) -> None:
     # Get applied migrations
     applied = await _get_applied_migrations(db)
 
-    # Find all migration files
-    migration_files = sorted(migrations_dir.glob("*.sql"))
+    # Find all migration files (exclude _down.sql rollback files)
+    migration_files = sorted(
+        f for f in migrations_dir.glob("*.sql") 
+        if not f.stem.endswith("_down")
+    )
     
     for migration_file in migration_files:
         # Extract version number from filename (e.g., "001_initial_schema.sql" -> 1)

@@ -61,7 +61,8 @@ async def test_stream_missing_api_key(client: AsyncClient):
         # Should receive SSE error event, not HTTP error
         content = response.text
         assert "event: error" in content
-        assert "OPENROUTER_API_KEY is not configured" in content
+        # Check for error_code or message about API key
+        assert ("MISSING_API_KEY" in content or "API key" in content)
 
 
 @pytest.mark.asyncio

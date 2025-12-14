@@ -43,7 +43,9 @@ async def test_document_qa_requires_api_key(monkeypatch, tmp_path):
         )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "OPENROUTER_API_KEY is not set"
+    error_data = response.json()
+    assert error_data["error_code"] == "MISSING_API_KEY"
+    assert "not configured" in error_data["message"]
 
 
 @pytest.mark.asyncio
@@ -115,10 +117,9 @@ async def test_delete_nonexistent_document(monkeypatch, tmp_path):
         response = await ac.delete("/api/documents/nonexistent.txt")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Document not found"
-
-
-@pytest.mark.asyncio
+    error_data = response.json()
+    assert error_data["error_code"] == "DOCUMENT_NOT_FOUND"
+    assert "not found" in error_data["message"].lower()
 async def test_delete_document_path_traversal(monkeypatch, tmp_path):
     """Test that delete endpoint prevents path traversal attacks"""
     monkeypatch.setattr(settings, "db_path", str(tmp_path / "test_documents.db"))

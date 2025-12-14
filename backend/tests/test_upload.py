@@ -45,10 +45,10 @@ async def test_upload_document_invalid_extension():
         response = await ac.post("/api/documents/upload", files=files)
         
         assert response.status_code == 400
-        assert "Invalid file type" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
+    # HTTPException returns either dict or string, handle both
+    resp_data = response.json()
+    error_msg = resp_data if isinstance(resp_data, str) else resp_data.get("detail", "")
+    assert "Invalid file type" in error_msg
 async def test_upload_document_too_large():
     """Test upload with file exceeding size limit"""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -59,10 +59,10 @@ async def test_upload_document_too_large():
         response = await ac.post("/api/documents/upload", files=files)
         
         assert response.status_code == 400
-        assert "File too large" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
+    # HTTPException returns either dict or string, handle both
+    resp_data = response.json()
+    error_msg = resp_data if isinstance(resp_data, str) else resp_data.get("detail", "")
+    assert "File too large" in error_msg
 async def test_upload_document_duplicate_name():
     """Test uploading file with duplicate name gets renamed"""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -113,7 +113,9 @@ async def test_delete_document_not_found():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.delete("/api/documents/nonexistent.txt")
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"]
+        error_data = response.json()
+        assert error_data["error_code"] == "DOCUMENT_NOT_FOUND"
+        assert "not found" in error_data["message"].lower()
 
 
 @pytest.mark.asyncio

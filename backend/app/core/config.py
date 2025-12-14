@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import AnyHttpUrl, Field, field_validator, ValidationError
+from pydantic import Field, field_validator
 from typing import List
 import logging
 

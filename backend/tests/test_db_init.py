@@ -1,5 +1,6 @@
-import pytest, os, tempfile
-from app.core.config import Settings
+import pytest
+import os
+import tempfile
 from app import db as dbmod
 
 @pytest.mark.asyncio

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import AsyncIterator, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 import aiosqlite
 from ...db import get_db

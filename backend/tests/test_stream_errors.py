@@ -40,7 +40,7 @@ async def setup_test_db():
     settings.db_path = original_db_path
     try:
         os.unlink(temp_db)
-    except:
+    except Exception:
         pass
 
 
@@ -67,35 +67,12 @@ async def test_stream_missing_api_key(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_stream_session_not_found(client: AsyncClient):
     """Test that invalid session_id returns proper SSE error event."""
-    response = await client.get(
-        "/api/stream",
-        params={
-            "session_id": "nonexistent-session",
-            "model_id": "test-model",
-        },
-    )
-    assert response.status_code == 200
-    assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
-    
-    content = response.text
-    assert "event: error" in content
-    assert "Session not found" in content
-
-
-@pytest.mark.asyncio
-async def test_stream_profile_not_found(client: AsyncClient):
-    """Test that invalid profile_id returns proper SSE error event."""
-    # Create a session first
-    from app.db import get_db
-    async for db in get_db():
-        session_id = await repo.create_session(db, {"session_type": "chat", "title": "test-session"})
-        
+    with patch("app.api.routes.stream.settings.openrouter_api_key", "test-key"):
         response = await client.get(
             "/api/stream",
             params={
-                "session_id": session_id,
+                "session_id": "nonexistent-session",
                 "model_id": "test-model",
-                "profile_id": 999,  # Non-existent profile
             },
         )
         assert response.status_code == 200
@@ -103,7 +80,32 @@ async def test_stream_profile_not_found(client: AsyncClient):
         
         content = response.text
         assert "event: error" in content
-        assert "Profile not found" in content
+        assert "Session not found" in content
+
+
+@pytest.mark.asyncio
+async def test_stream_profile_not_found(client: AsyncClient):
+    """Test that invalid profile_id returns proper SSE error event."""
+    # Create a session first
+    from app.db import get_db
+    with patch("app.api.routes.stream.settings.openrouter_api_key", "test-key"):
+        async for db in get_db():
+            session_id = await repo.create_session(db, {"session_type": "chat", "title": "test-session"})
+            
+            response = await client.get(
+                "/api/stream",
+                params={
+                    "session_id": session_id,
+                    "model_id": "test-model",
+                    "profile_id": 999,  # Non-existent profile
+                },
+            )
+            assert response.status_code == 200
+            assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
+            
+            content = response.text
+            assert "event: error" in content
+            assert "Profile not found" in content
 
 
 @pytest.mark.asyncio

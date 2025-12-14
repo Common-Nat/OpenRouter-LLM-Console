@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Literal
+from typing import Optional, Literal
 
 class ModelOut(BaseModel):
     id: str

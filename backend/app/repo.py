@@ -1,6 +1,6 @@
 from __future__ import annotations
 import uuid
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 import aiosqlite
 
 def _uuid() -> str:

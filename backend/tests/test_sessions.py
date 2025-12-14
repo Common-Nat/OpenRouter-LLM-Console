@@ -28,7 +28,7 @@ async def setup_test_db():
     settings.db_path = original_db_path
     try:
         os.unlink(temp_db)
-    except:
+    except Exception:
         pass
 
 

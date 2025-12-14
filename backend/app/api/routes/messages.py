@@ -4,6 +4,7 @@ from ...db import get_db
 from ... import repo
 from ...schemas import MessageCreate, MessageOut
 from ...core.ratelimit import limiter, RATE_LIMITS
+from ...core.errors import APIError
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
@@ -12,7 +13,11 @@ router = APIRouter(prefix="/messages", tags=["messages"])
 async def create_message(request: Request, payload: MessageCreate, db: aiosqlite.Connection = Depends(get_db)):
     session = await repo.get_session(db, payload.session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise APIError.not_found(
+            APIError.SESSION_NOT_FOUND,
+            resource_type="session",
+            resource_id=payload.session_id
+        )
 
     mid = await repo.add_message(db, payload.session_id, payload.role, payload.content)
     rows = await repo.list_messages(db, payload.session_id)

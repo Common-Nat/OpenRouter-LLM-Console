@@ -5,6 +5,7 @@ from ...db import get_db
 from ... import repo
 from ...schemas import ModelUsageSummary, UsageLogCreate, UsageLogOut
 from ...core.ratelimit import limiter, RATE_LIMITS
+from ...core.errors import APIError
 
 
 router = APIRouter(prefix="/usage", tags=["usage"])
@@ -17,7 +18,12 @@ async def create_usage_log(payload: UsageLogCreate, db: aiosqlite.Connection = D
     rows = await repo.list_usage_by_session(db, payload.session_id)
     created = next((r for r in rows if r["id"] == usage_id), None)
     if not created:
-        raise HTTPException(status_code=404, detail="Usage log not found after creation")
+        raise APIError.not_found(
+            APIError.USAGE_LOG_NOT_FOUND,
+            resource_type="usage_log",
+            resource_id=usage_id,
+            message="Usage log not found after creation"
+        )
     return dict(created)
 
 

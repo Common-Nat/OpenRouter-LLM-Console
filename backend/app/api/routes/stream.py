@@ -9,16 +9,26 @@ from ...core.config import settings
 from ...core.sse import sse_data
 from ...core.logging_config import request_id_ctx_var
 from ...core.ratelimit import limiter, RATE_LIMITS
+from ...core.errors import APIError
 
 router = APIRouter(prefix="", tags=["stream"])
 
 
-async def _error_stream(status: int, message: str) -> AsyncIterator[str]:
-    """Helper to yield SSE error event instead of raising HTTPException for streams."""
+async def _error_stream(
+    error_code: str,
+    status: int,
+    message: str,
+    resource_type: str | None = None,
+    resource_id: str | None = None
+) -> AsyncIterator[str]:
+    """Helper to yield structured SSE error event instead of raising HTTPException for streams."""
     yield sse_data(
         {
+            "error_code": error_code,
             "status": status,
             "message": message,
+            "resource_type": resource_type,
+            "resource_id": resource_id,
             "request_id": request_id_ctx_var.get("-"),
         },
         event="error",
@@ -40,14 +50,24 @@ async def stream(
     # so EventSource receives proper error events, not HTTP errors
     if not settings.openrouter_api_key:
         return StreamingResponse(
-            _error_stream(400, "OPENROUTER_API_KEY is not configured"),
+            _error_stream(
+                APIError.MISSING_API_KEY,
+                400,
+                "OpenRouter API key is not configured"
+            ),
             media_type="text/event-stream",
         )
 
     session = await repo.get_session(db, session_id)
     if not session:
         return StreamingResponse(
-            _error_stream(404, "Session not found"),
+            _error_stream(
+                APIError.SESSION_NOT_FOUND,
+                404,
+                "Session not found",
+                resource_type="session",
+                resource_id=session_id
+            ),
             media_type="text/event-stream",
         )
 
@@ -57,7 +77,13 @@ async def stream(
         profile = await repo.get_profile(db, int(resolved_profile_id))
         if not profile:
             return StreamingResponse(
-                _error_stream(404, "Profile not found"),
+                _error_stream(
+                    APIError.PROFILE_NOT_FOUND,
+                    404,
+                    "Profile not found",
+                    resource_type="profile",
+                    resource_id=str(resolved_profile_id)
+                ),
                 media_type="text/event-stream",
             )
 

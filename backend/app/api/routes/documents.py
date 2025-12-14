@@ -10,6 +10,7 @@ from ...schemas import DocumentOut, DocumentQARequest
 from ...services.documents import list_documents, load_document
 from ...services.openrouter import process_streaming_response
 from ...core.ratelimit import limiter, RATE_LIMITS
+from ...core.errors import APIError
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -23,7 +24,10 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 async def upload_document(request: Request, file: UploadFile = File(...)):
     """Upload a text document for Q&A analysis"""
     if not file.filename:
-        raise HTTPException(status_code=400, detail="No filename provided")
+        raise APIError.bad_request(
+            APIError.MISSING_FILENAME,
+            message="No filename provided in uploaded file"
+        )
     
     # Validate file extension
     file_ext = PathLib(file.filename).suffix.lower()
@@ -63,7 +67,11 @@ async def upload_document(request: Request, file: UploadFile = File(...)):
     try:
         file_path.write_bytes(content)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        raise APIError.internal_error(
+            APIError.FILE_SAVE_FAILED,
+            message="Failed to save uploaded file",
+            details={"filename": safe_filename, "error": str(e)}
+        )
     
     # Return document metadata
     stat = file_path.stat()
@@ -91,15 +99,27 @@ async def delete_document(document_id: str = Path(..., description="Identifier o
     try:
         file_path.relative_to(uploads_dir.resolve())
     except ValueError:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise APIError.not_found(
+            APIError.DOCUMENT_NOT_FOUND,
+            resource_type="document",
+            resource_id=document_id
+        )
     
     if not file_path.is_file():
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise APIError.not_found(
+            APIError.DOCUMENT_NOT_FOUND,
+            resource_type="document",
+            resource_id=document_id
+        )
     
     try:
         file_path.unlink()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
+        raise APIError.internal_error(
+            APIError.FILE_DELETE_FAILED,
+            message="Failed to delete document",
+            details={"document_id": document_id, "error": str(e)}
+        )
     
     return {"message": "Document deleted successfully", "id": document_id}
 
@@ -111,19 +131,31 @@ async def document_qa(
     db: aiosqlite.Connection = Depends(get_db),
 ):
     if not settings.openrouter_api_key:
-        raise HTTPException(status_code=400, detail="OPENROUTER_API_KEY is not set")
+        raise APIError.bad_request(
+            APIError.MISSING_API_KEY,
+            message="OpenRouter API key is not configured",
+            details={"config_key": "OPENROUTER_API_KEY"}
+        )
 
     try:
         document = load_document(document_id)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise APIError.not_found(
+            APIError.DOCUMENT_NOT_FOUND,
+            resource_type="document",
+            resource_id=document_id
+        )
 
     session_id = payload.session_id
     session = None
     if session_id:
         session = await repo.get_session(db, session_id)
         if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise APIError.not_found(
+                APIError.SESSION_NOT_FOUND,
+                resource_type="session",
+                resource_id=session_id
+            )
     else:
         session_id = await repo.create_session(
             db,
@@ -140,7 +172,11 @@ async def document_qa(
     if resolved_profile_id is not None:
         profile = await repo.get_profile(db, int(resolved_profile_id))
         if not profile:
-            raise HTTPException(status_code=404, detail="Profile not found")
+            raise APIError.not_found(
+                APIError.PROFILE_NOT_FOUND,
+                resource_type="profile",
+                resource_id=resolved_profile_id
+            )
 
     resolved_temperature = payload.temperature if payload.temperature is not None else (profile["temperature"] if profile else 0.7)
     resolved_max_tokens = payload.max_tokens if payload.max_tokens is not None else (profile["max_tokens"] if profile else 2048)

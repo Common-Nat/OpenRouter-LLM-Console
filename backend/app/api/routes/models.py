@@ -8,6 +8,7 @@ from ...schemas import ModelOut
 from ...services import openrouter
 from ...core.config import settings
 from ...core.ratelimit import limiter, RATE_LIMITS
+from ...core.errors import APIError
 
 router = APIRouter(prefix="/models", tags=["models"])
 
@@ -15,7 +16,11 @@ router = APIRouter(prefix="/models", tags=["models"])
 @limiter.limit(RATE_LIMITS["model_sync"])
 async def sync_models(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     if not settings.openrouter_api_key:
-        raise HTTPException(status_code=400, detail="OPENROUTER_API_KEY is not set")
+        raise APIError.bad_request(
+            APIError.MISSING_API_KEY,
+            message="OpenRouter API key is not configured",
+            details={"config_key": "OPENROUTER_API_KEY"}
+        )
 
     data = await openrouter.list_models()
 

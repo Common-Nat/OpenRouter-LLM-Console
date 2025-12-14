@@ -4,6 +4,7 @@ from ...db import get_db
 from ... import repo
 from ...schemas import SessionCreate, SessionUpdate, SessionOut, MessageOut
 from ...core.ratelimit import limiter, RATE_LIMITS
+from ...core.errors import APIError
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -28,7 +29,11 @@ async def list_sessions(limit: int = Query(default=50, ge=1, le=500), db: aiosql
 async def get_session(session_id: str, db: aiosqlite.Connection = Depends(get_db)):
     row = await repo.get_session(db, session_id)
     if not row:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise APIError.not_found(
+            APIError.SESSION_NOT_FOUND,
+            resource_type="session",
+            resource_id=session_id
+        )
     return dict(row)
 
 @router.put("/{session_id}", response_model=SessionOut)
@@ -36,12 +41,20 @@ async def update_session(session_id: str, payload: SessionUpdate, db: aiosqlite.
     # Check if session exists
     existing = await repo.get_session(db, session_id)
     if not existing:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise APIError.not_found(
+            APIError.SESSION_NOT_FOUND,
+            resource_type="session",
+            resource_id=session_id
+        )
     
     # Update with only provided fields
     updated = await repo.update_session(db, session_id, payload.model_dump(exclude_unset=True))
     if not updated:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise APIError.not_found(
+            APIError.SESSION_NOT_FOUND,
+            resource_type="session",
+            resource_id=session_id
+        )
     
     # Return updated session
     row = await repo.get_session(db, session_id)
@@ -51,7 +64,11 @@ async def update_session(session_id: str, payload: SessionUpdate, db: aiosqlite.
 async def delete_session(session_id: str, db: aiosqlite.Connection = Depends(get_db)):
     deleted = await repo.delete_session(db, session_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise APIError.not_found(
+            APIError.SESSION_NOT_FOUND,
+            resource_type="session",
+            resource_id=session_id
+        )
     return {"message": "Session deleted successfully"}
 
 @router.get("/{session_id}/messages", response_model=list[MessageOut])

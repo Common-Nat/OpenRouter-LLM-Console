@@ -2,7 +2,8 @@ from contextlib import asynccontextmanager
 import logging
 import time
 import uuid
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -53,6 +54,25 @@ app = FastAPI(title=settings.app_title, lifespan=lifespan)
 # Register rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Add X-Error-Code header to all HTTPException responses."""
+    headers = dict(exc.headers) if exc.headers else {}
+    
+    # Add request ID to headers
+    headers["X-Request-ID"] = request_id_ctx_var.get("-")
+    
+    # Add error code to headers if present in detail
+    if isinstance(exc.detail, dict) and "error_code" in exc.detail:
+        headers["X-Error-Code"] = exc.detail["error_code"]
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=exc.detail,
+        headers=headers
+    )
 
 app.add_middleware(
     CORSMiddleware,

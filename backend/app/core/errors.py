@@ -3,11 +3,14 @@ from typing import Any
 from pydantic import BaseModel
 from fastapi import HTTPException
 
+from .logging_config import request_id_ctx_var
+
 
 class ErrorDetail(BaseModel):
     """Structured error response model."""
     error_code: str
     message: str
+    request_id: str | None = None
     resource_type: str | None = None
     resource_id: str | None = None
     details: dict[str, Any] | None = None
@@ -49,6 +52,7 @@ class APIError:
         detail = ErrorDetail(
             error_code=error_code,
             message=message,
+            request_id=request_id_ctx_var.get("-"),
             resource_type=resource_type,
             resource_id=str(resource_id)
         )
@@ -64,6 +68,7 @@ class APIError:
         detail = ErrorDetail(
             error_code=error_code,
             message=message,
+            request_id=request_id_ctx_var.get("-"),
             details=details
         )
         return HTTPException(status_code=400, detail=detail.model_dump())
@@ -78,6 +83,7 @@ class APIError:
         detail = ErrorDetail(
             error_code=error_code,
             message=message,
+            request_id=request_id_ctx_var.get("-"),
             details=details
         )
         return HTTPException(status_code=500, detail=detail.model_dump())

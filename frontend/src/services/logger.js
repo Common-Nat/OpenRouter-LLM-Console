@@ -78,16 +78,18 @@ class Logger {
    * Sanitize data to remove sensitive information
    */
   sanitize(data) {
-    if (!data) return data;
+    if (data === null || data === undefined) return data;
+    if (typeof data !== 'object') return data;
     
-    const sensitive = ['password', 'token', 'api_key', 'apiKey', 'secret'];
+    const sensitive = ['password', 'token', 'api_key', 'apikey', 'secret'];
     const sanitized = JSON.parse(JSON.stringify(data));
     
     const redact = (obj) => {
       if (typeof obj !== 'object' || obj === null) return;
       
       for (const key in obj) {
-        if (sensitive.some(s => key.toLowerCase().includes(s))) {
+        const lowerKey = key.toLowerCase();
+        if (sensitive.some(s => lowerKey.includes(s))) {
           obj[key] = '[REDACTED]';
         } else if (typeof obj[key] === 'object') {
           redact(obj[key]);
@@ -327,23 +329,23 @@ class Logger {
   }
 
   // Convenience methods
-  debug(message, meta) {
+  debug(message, meta = {}) {
     this.log(LOG_LEVELS.DEBUG, message, meta);
   }
 
-  info(message, meta) {
+  info(message, meta = {}) {
     this.log(LOG_LEVELS.INFO, message, meta);
   }
 
-  warn(message, meta) {
+  warn(message, meta = {}) {
     this.log(LOG_LEVELS.WARN, message, meta);
   }
 
-  error(message, meta) {
+  error(message, meta = {}) {
     this.log(LOG_LEVELS.ERROR, message, meta);
   }
 
-  critical(message, meta) {
+  critical(message, meta = {}) {
     this.log(LOG_LEVELS.CRITICAL, message, meta);
   }
 
@@ -366,14 +368,14 @@ class Logger {
   /**
    * Log React component error
    */
-  componentError(error, errorInfo) {
+  componentError(error, errorInfo = {}) {
     this.error('React Component Error', {
       error: {
         name: error.name,
         message: error.message,
         stack: error.stack,
       },
-      componentStack: errorInfo.componentStack,
+      ...errorInfo,
     });
   }
 }

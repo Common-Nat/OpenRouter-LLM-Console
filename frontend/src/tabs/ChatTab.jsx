@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPost } from "../api/client.js";
 import useStream from "../hooks/useStream.js";
 import UsagePanel from "../components/UsagePanel.jsx";
+import MessageContent from "../components/MessageContent.jsx";
+import "../styles/MessageContent.css";
 
 function useAutoScroll(dep) {
   const ref = useRef(null);
@@ -165,12 +167,15 @@ export default function ChatTab({ modelId, profileId, profiles = [], selectedPro
             </div>
           )}
           <div className="chatlog" ref={logRef}>
-            {messages.map(m => (
-              <div key={m.id} className={`bubble ${m.role === "user" ? "user" : "assistant"}`}>
-                <div className="muted small" style={{marginBottom: 6}}>{m.role}</div>
-                {m.content}
-              </div>
-            ))}
+            {messages.map(m => {
+              const isStreaming = m.id && m.id.startsWith('tmp-');
+              return (
+                <div key={m.id} className={`bubble ${m.role === "user" ? "user" : "assistant"}`}>
+                  <div className="muted small" style={{marginBottom: 6}}>{m.role}</div>
+                  <MessageContent content={m.content} isStreaming={isStreaming} />
+                </div>
+              );
+            })}
           </div>
 
           <div className="hr" />

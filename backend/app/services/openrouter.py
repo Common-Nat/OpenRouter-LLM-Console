@@ -33,12 +33,9 @@ def _headers() -> Dict[str, str]:
     }
 
 
-ASYNC_TIMEOUT = 30
-
-
 async def list_models() -> Dict[str, Any]:
     logger.info("Requesting OpenRouter models", extra={"action": "openrouter_request", "endpoint": "/models"})
-    async with httpx.AsyncClient(base_url=settings.openrouter_base_url, timeout=ASYNC_TIMEOUT) as client:
+    async with httpx.AsyncClient(base_url=settings.openrouter_base_url, timeout=settings.openrouter_timeout) as client:
         r = await client.get("/models", headers=_headers())
         if r.status_code != 200:
             logger.warning(

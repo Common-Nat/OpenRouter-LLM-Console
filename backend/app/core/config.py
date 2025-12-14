@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     uploads_dir: str = Field(default="./uploads", alias="UPLOADS_DIR")
 
     openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
+    openrouter_timeout: int = Field(default=90, alias="OPENROUTER_TIMEOUT")
     
     # Rate limiting configuration (requests per time period)
     rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")

@@ -15,6 +15,7 @@ class ProfileCreate(BaseModel):
     system_prompt: Optional[str] = None
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=1, le=32768)
+    openrouter_preset: Optional[str] = None
 
 class ProfileOut(ProfileCreate):
     id: int

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   system_prompt TEXT,
   temperature REAL DEFAULT 0.7,
   max_tokens INTEGER DEFAULT 2048,
+  openrouter_preset TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -67,7 +68,15 @@ async def init_db() -> None:
     Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
     async with aiosqlite.connect(settings.db_path) as db:
         await db.executescript(INIT_SQL)
+        await _migrate_profiles(db)
         await db.commit()
+
+
+async def _migrate_profiles(db: aiosqlite.Connection) -> None:
+    cur = await db.execute("PRAGMA table_info(profiles)")
+    columns = [row[1] for row in await cur.fetchall()]
+    if "openrouter_preset" not in columns:
+        await db.execute("ALTER TABLE profiles ADD COLUMN openrouter_preset TEXT")
 
 async def get_db():
     db = await aiosqlite.connect(settings.db_path)

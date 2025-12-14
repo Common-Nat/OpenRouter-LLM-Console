@@ -40,6 +40,13 @@ async def stream(
     resolved_temperature = temperature if temperature is not None else (profile["temperature"] if profile else 0.7)
     resolved_max_tokens = max_tokens if max_tokens is not None else (profile["max_tokens"] if profile else 2048)
 
+    resolved_model_id = model_id
+    profile_preset = profile.get("openrouter_preset") if profile else None
+    if profile_preset:
+        preset_suffix = profile_preset if str(profile_preset).startswith("@preset/") else f"@preset/{profile_preset}"
+        if "@preset/" not in resolved_model_id:
+            resolved_model_id = f"{resolved_model_id}{preset_suffix}"
+
     # Build messages for OpenRouter from DB
     rows = await repo.list_messages(db, session_id)
     messages = [{"role": r["role"], "content": r["content"]} for r in rows]
@@ -53,7 +60,7 @@ async def stream(
 
         try:
             async for line in stream_chat_completions(
-                model=model_id, messages=messages, temperature=resolved_temperature, max_tokens=resolved_max_tokens
+                model=resolved_model_id, messages=messages, temperature=resolved_temperature, max_tokens=resolved_max_tokens
             ):
                 if not line:
                     continue
@@ -148,7 +155,7 @@ async def stream(
             await repo.insert_usage_log(
                 db,
                 session_id=session_id,
-                model_id=model_id,
+                model_id=resolved_model_id,
                 prompt_tokens=usage_counts["prompt_tokens"],
                 completion_tokens=usage_counts["completion_tokens"],
                 profile_id=resolved_profile_id,

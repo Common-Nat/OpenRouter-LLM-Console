@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { apiGet } from "../api/client.js";
+import { apiGet, apiDelete } from "../api/client.js";
 
 function formatBytes(bytes) {
   if (!bytes && bytes !== 0) return "-";
@@ -69,6 +69,23 @@ export default function DocumentsTab({ modelId, profileId, profiles = [], select
       setDocuments(data);
     } catch (e) {
       setError(e.message || "Failed to load documents.");
+    }
+  }
+
+  async function deleteDocument(docId) {
+    if (!docId) return;
+    if (!confirm(`Delete "${docId}"? This cannot be undone.`)) return;
+    
+    try {
+      await apiDelete(`/api/documents/${encodeURIComponent(docId)}`);
+      setError("");
+      if (selectedDoc === docId) {
+        setSelectedDoc("");
+        resetSession();
+      }
+      await loadDocuments();
+    } catch (e) {
+      setError(e.message || "Failed to delete document.");
     }
   }
 
@@ -186,6 +203,18 @@ export default function DocumentsTab({ modelId, profileId, profiles = [], select
   return (
     <div className="row wrap">
       <div className="col">
+            <div className="toolbar" style={{ marginTop: 10 }}>
+              <button 
+                className="btn" 
+                onClick={() => deleteDocument(selectedDocMeta.id)}
+                style={{ color: "#d9534f" }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+
+          {selectedDocMeta && (
         <div className="card">
           <div className="topbar">
             <div>

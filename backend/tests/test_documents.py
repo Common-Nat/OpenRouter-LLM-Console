@@ -72,3 +72,74 @@ async def test_document_path_traversal_prevented(monkeypatch, tmp_path):
     assert response.status_code == 404
     # Accept either FastAPI's generic 404 or our custom error message
     assert response.json()["detail"] in ["Document not found", "Not Found"]
+
+
+@pytest.mark.asyncio
+async def test_delete_document(monkeypatch, tmp_path):
+    """Test deleting a document"""
+    monkeypatch.setattr(settings, "db_path", str(tmp_path / "test_documents.db"))
+    monkeypatch.setattr(settings, "uploads_dir", str(tmp_path / "uploads"))
+    await dbmod.init_db()
+
+    uploads = tmp_path / "uploads"
+    uploads.mkdir(parents=True, exist_ok=True)
+    test_file = uploads / "delete_me.txt"
+    test_file.write_text("This will be deleted")
+
+    # Verify file exists
+    assert test_file.exists()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.delete("/api/documents/delete_me.txt")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "Document deleted successfully"
+    assert data["id"] == "delete_me.txt"
+    
+    # Verify file was deleted
+    assert not test_file.exists()
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_document(monkeypatch, tmp_path):
+    """Test deleting a document that doesn't exist"""
+    monkeypatch.setattr(settings, "db_path", str(tmp_path / "test_documents.db"))
+    monkeypatch.setattr(settings, "uploads_dir", str(tmp_path / "uploads"))
+    await dbmod.init_db()
+
+    uploads = tmp_path / "uploads"
+    uploads.mkdir(parents=True, exist_ok=True)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.delete("/api/documents/nonexistent.txt")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Document not found"
+
+
+@pytest.mark.asyncio
+async def test_delete_document_path_traversal(monkeypatch, tmp_path):
+    """Test that delete endpoint prevents path traversal attacks"""
+    monkeypatch.setattr(settings, "db_path", str(tmp_path / "test_documents.db"))
+    monkeypatch.setattr(settings, "uploads_dir", str(tmp_path / "uploads"))
+    await dbmod.init_db()
+
+    uploads = tmp_path / "uploads"
+    uploads.mkdir(parents=True, exist_ok=True)
+    
+    # Create a file outside uploads directory
+    secret_file = tmp_path / "secret.txt"
+    secret_file.write_text("Secret data")
+
+    # Try path traversal attack with URL encoding
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.delete("/api/documents/%2E%2E%2Fsecret.txt")
+
+    # Should return 404, not delete the file outside uploads
+    # FastAPI normalizes the path, so it may return different 404 messages
+    assert response.status_code == 404
+    assert response.json()["detail"] in ["Document not found", "Not Found"]
+    
+    # Verify the secret file still exists
+    assert secret_file.exists()

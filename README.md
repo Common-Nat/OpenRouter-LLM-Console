@@ -296,6 +296,29 @@ Test suite includes:
 - **CORS Configuration**: Configurable allowed origins for cross-origin requests
 - **Foreign Key Constraints**: Database integrity enforced with proper cascading deletes
 
+## Transport Security (HTTPS)
+
+This application is designed to run **locally only** by default (`localhost` / `127.0.0.1`).
+
+**When running locally:**
+- HTTPS is not required
+- API keys never leave the host
+- There is no risk of network interception
+- Backend-to-OpenRouter communication is always HTTPS regardless of local server settings
+
+**Production / Remote Access:**
+
+If you expose this application beyond localhost (e.g., LAN, WAN, VPS):
+- You **MUST** place it behind an HTTPS-terminating reverse proxy
+- Do **NOT** expose FastAPI directly to the internet
+
+Recommended options:
+- **NGINX** + Let's Encrypt
+- **Caddy** (automatic HTTPS)
+- **Traefik** (automatic HTTPS)
+
+The application will log a warning at startup if it detects non-localhost origins without HTTPS.
+
 ## Production Deployment
 
 For production deployment, consider:

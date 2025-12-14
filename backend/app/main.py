@@ -27,6 +27,23 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    
+    # Security check: Warn if exposed beyond localhost without HTTPS
+    non_localhost_origins = [
+        origin for origin in settings.origins_list
+        if "localhost" not in origin and "127.0.0.1" not in origin
+    ]
+    if non_localhost_origins:
+        logger.warning(
+            "Application configured with non-localhost origins. "
+            "Ensure HTTPS is enforced via reverse proxy (nginx/caddy/traefik). "
+            "Never expose FastAPI directly to the internet without TLS.",
+            extra={
+                "action": "security_check",
+                "non_localhost_origins": non_localhost_origins
+            }
+        )
+    
     yield
 
 

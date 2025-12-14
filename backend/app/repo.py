@@ -53,15 +53,21 @@ async def list_models(db: aiosqlite.Connection, *, reasoning: Optional[bool]=Non
 
 async def create_profile(db: aiosqlite.Connection, data: Dict[str, Any]) -> int:
     cur = await db.execute(
-        "INSERT INTO profiles(name, system_prompt, temperature, max_tokens) VALUES(?,?,?,?)",
-        (data["name"], data.get("system_prompt"), data.get("temperature", 0.7), data.get("max_tokens", 2048)),
+        "INSERT INTO profiles(name, system_prompt, temperature, max_tokens, openrouter_preset) VALUES(?,?,?,?,?)",
+        (
+            data["name"],
+            data.get("system_prompt"),
+            data.get("temperature", 0.7),
+            data.get("max_tokens", 2048),
+            data.get("openrouter_preset"),
+        ),
     )
     await db.commit()
     return cur.lastrowid
 
 async def get_profile(db: aiosqlite.Connection, profile_id: int) -> Optional[aiosqlite.Row]:
     cur = await db.execute(
-        "SELECT id, name, system_prompt, temperature, max_tokens FROM profiles WHERE id=?",
+        "SELECT id, name, system_prompt, temperature, max_tokens, openrouter_preset FROM profiles WHERE id=?",
         (profile_id,),
     )
     return await cur.fetchone()
@@ -70,10 +76,17 @@ async def update_profile(db: aiosqlite.Connection, profile_id: int, data: Dict[s
     cur = await db.execute(
         """
         UPDATE profiles
-        SET name=?, system_prompt=?, temperature=?, max_tokens=?
+        SET name=?, system_prompt=?, temperature=?, max_tokens=?, openrouter_preset=?
         WHERE id=?
         """,
-        (data["name"], data.get("system_prompt"), data.get("temperature", 0.7), data.get("max_tokens", 2048), profile_id),
+        (
+            data["name"],
+            data.get("system_prompt"),
+            data.get("temperature", 0.7),
+            data.get("max_tokens", 2048),
+            data.get("openrouter_preset"),
+            profile_id,
+        ),
     )
     await db.commit()
     return cur.rowcount > 0
@@ -84,7 +97,9 @@ async def delete_profile(db: aiosqlite.Connection, profile_id: int) -> bool:
     return cur.rowcount > 0
 
 async def list_profiles(db: aiosqlite.Connection) -> List[aiosqlite.Row]:
-    cur = await db.execute("SELECT id, name, system_prompt, temperature, max_tokens FROM profiles ORDER BY id DESC")
+    cur = await db.execute(
+        "SELECT id, name, system_prompt, temperature, max_tokens, openrouter_preset FROM profiles ORDER BY id DESC"
+    )
     return await cur.fetchall()
 
 async def create_session(db: aiosqlite.Connection, data: Dict[str, Any]) -> str:

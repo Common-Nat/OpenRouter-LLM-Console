@@ -1,5 +1,5 @@
 """Structured error handling for consistent API responses."""
-from typing import Any
+from typing import Any, Dict, Optional, Union
 from pydantic import BaseModel
 from fastapi import HTTPException
 
@@ -10,10 +10,10 @@ class ErrorDetail(BaseModel):
     """Structured error response model."""
     error_code: str
     message: str
-    request_id: str | None = None
-    resource_type: str | None = None
-    resource_id: str | None = None
-    details: dict[str, Any] | None = None
+    request_id: Optional[str] = None
+    resource_type: Optional[str] = None
+    resource_id: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
 
 
 class APIError:
@@ -42,8 +42,8 @@ class APIError:
     def not_found(
         error_code: str,
         resource_type: str,
-        resource_id: str | int,
-        message: str | None = None
+        resource_id: Union[str, int],
+        message: Optional[str] = None
     ) -> HTTPException:
         """Create a 404 not found exception with structured detail."""
         if message is None:
@@ -62,7 +62,7 @@ class APIError:
     def bad_request(
         error_code: str,
         message: str,
-        details: dict[str, Any] | None = None
+        details: Optional[Dict[str, Any]] = None
     ) -> HTTPException:
         """Create a 400 bad request exception with structured detail."""
         detail = ErrorDetail(
@@ -77,7 +77,7 @@ class APIError:
     def internal_error(
         error_code: str,
         message: str,
-        details: dict[str, Any] | None = None
+        details: Optional[Dict[str, Any]] = None
     ) -> HTTPException:
         """Create a 500 internal server error with structured detail."""
         detail = ErrorDetail(

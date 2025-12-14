@@ -18,8 +18,8 @@ async def _error_stream(
     error_code: str,
     status: int,
     message: str,
-    resource_type: str | None = None,
-    resource_id: str | None = None
+    resource_type: Optional[str] = None,
+    resource_id: Optional[str] = None
 ) -> AsyncIterator[str]:
     """Helper to yield structured SSE error event instead of raising HTTPException for streams."""
     yield sse_data(

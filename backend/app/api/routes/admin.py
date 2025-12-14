@@ -2,7 +2,7 @@
 import logging
 import shutil
 import aiosqlite
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
@@ -59,7 +59,7 @@ async def download_backup(request: Request):
     """
     try:
         # Generate timestamped filename
-        timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
         backup_name = f"console_backup_{timestamp}.db"
         
         # Create backup directory and copy database
@@ -144,7 +144,7 @@ async def restore_backup(
         
         # Save uploaded file to temp location
         backup_dir = get_backup_dir()
-        temp_path = backup_dir / f"temp_restore_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.db"
+        temp_path = backup_dir / f"temp_restore_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.db"
         
         # Write uploaded file
         with open(temp_path, "wb") as buffer:
@@ -163,7 +163,7 @@ async def restore_backup(
         
         # Backup current database before replacing
         db_path = Path(settings.db_path)
-        backup_name = f"console_backup_before_restore_{datetime.now(UTC).strftime('%Y-%m-%d_%H-%M-%S')}.db"
+        backup_name = f"console_backup_before_restore_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M-%S')}.db"
         backup_path = backup_dir / backup_name
         
         if db_path.exists():

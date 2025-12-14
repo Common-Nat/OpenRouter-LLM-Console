@@ -12,37 +12,60 @@ export default function useStream() {
     }
   }, []);
 
-  const start = useCallback((url, { onToken, onDone, onError } = {}) => {
+  const start = useCallback((url, { onStart, onToken, onDone, onError } = {}) => {
     abort();
     const es = new EventSource(url);
     eventSourceRef.current = es;
     setStreaming(true);
 
-    const finish = () => {
+    const parsePayload = (event) => {
+      try {
+        return JSON.parse(event.data);
+      } catch {
+        return event.data;
+      }
+    };
+
+    const finish = (payload) => {
       if (eventSourceRef.current === es) {
         es.close();
         eventSourceRef.current = null;
         setStreaming(false);
       }
-      onDone?.();
+      onDone?.(payload);
     };
 
+    es.addEventListener("start", (event) => {
+      onStart?.(parsePayload(event));
+    });
+
+    es.addEventListener("token", (event) => {
+      const payload = parsePayload(event);
+      const token = typeof payload === "object" && payload !== null ? payload.token ?? payload?.data ?? "" : payload;
+      if (token) onToken?.(token);
+    });
+
+    es.addEventListener("done", (event) => {
+      finish(parsePayload(event));
+    });
+
+    es.addEventListener("error", (event) => {
+      const payload = parsePayload(event);
+      onError?.(payload, event);
+      finish(payload);
+    });
+
+    // Fallback for default message events
     es.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "token") {
-          onToken?.(msg.token);
-        } else if ((msg.type === "meta" && msg.message === "stream_end") || es.readyState === EventSource.CLOSED) {
-          finish();
+      const payload = parsePayload(event);
+      if (typeof payload === "object" && payload !== null) {
+        if (payload.type === "token") {
+          onToken?.(payload.token);
         }
-      } catch {
-        // ignore parsing errors
+        if (payload.type === "meta" && payload.message === "stream_end") {
+          finish(payload);
+        }
       }
-    };
-
-    es.onerror = (event) => {
-      onError?.(event);
-      finish();
     };
 
     return () => {

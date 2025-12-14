@@ -24,3 +24,5 @@ button, input, select, textarea { font: inherit; }
 .bubble.user { border-color:#2a4675; background:#0f203a; }
 .bubble.assistant { border-color:#2a7445; background:#0f2619; }
 .toolbar { display:flex; gap: 8px; flex-wrap: wrap; }
+.banner { padding: 10px 12px; border-radius: 10px; border:1px solid #22324a; background:#0f1724; }
+.banner.error { border-color: #7a2a2a; background:#2b1414; color:#ffb4b4; }

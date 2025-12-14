@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import ModelSelector from "./components/ModelSelector.jsx";
 import ProfileManager from "./components/ProfileManager.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import ChatTab from "./tabs/ChatTab.jsx";
 import CodeTab from "./tabs/CodeTab.jsx";
 import DocumentsTab from "./tabs/DocumentsTab.jsx";
@@ -18,10 +19,10 @@ export default function App() {
 
   const body = useMemo(() => {
     switch (tab) {
-      case "Chat": return <ChatTab modelId={modelId} profileId={profileId} profiles={profiles} selectedProfile={selectedProfile} />;
-      case "Code": return <CodeTab modelId={modelId} profile={selectedProfile} />;
-      case "Documents": return <DocumentsTab modelId={modelId} profileId={profileId} profiles={profiles} selectedProfile={selectedProfile} />;
-      case "Playground": return <PlaygroundTab />;
+      case "Chat": return <ErrorBoundary context={{ tab: "Chat", modelId, profileId }}><ChatTab modelId={modelId} profileId={profileId} profiles={profiles} selectedProfile={selectedProfile} /></ErrorBoundary>;
+      case "Code": return <ErrorBoundary context={{ tab: "Code", modelId }}><CodeTab modelId={modelId} profile={selectedProfile} /></ErrorBoundary>;
+      case "Documents": return <ErrorBoundary context={{ tab: "Documents", modelId, profileId }}><DocumentsTab modelId={modelId} profileId={profileId} profiles={profiles} selectedProfile={selectedProfile} /></ErrorBoundary>;
+      case "Playground": return <ErrorBoundary context={{ tab: "Playground" }}><PlaygroundTab /></ErrorBoundary>;
       default: return null;
     }
   }, [tab, modelId, profileId, profiles, selectedProfile]);

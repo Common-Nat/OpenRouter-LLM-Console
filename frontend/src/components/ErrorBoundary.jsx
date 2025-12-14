@@ -28,8 +28,13 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log error to logging service
-    logger.componentError(error, errorInfo);
+    // Log error to logging service with additional context
+    logger.componentError(error, {
+      ...errorInfo,
+      context: this.props.context,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+    });
 
     // Store error details for display
     this.setState({
@@ -39,7 +44,7 @@ class ErrorBoundary extends Component {
 
     // Also log to console in development
     if (import.meta.env.DEV) {
-      console.error('ErrorBoundary caught an error:', error, errorInfo);
+      console.error('ErrorBoundary caught an error:', error, errorInfo, 'Context:', this.props.context);
     }
   }
 
@@ -93,6 +98,7 @@ class ErrorBoundary extends Component {
               display: 'flex',
               gap: '12px',
               marginBottom: '24px',
+              flexWrap: 'wrap',
             }}>
               <button
                 onClick={this.handleReset}
@@ -124,6 +130,25 @@ class ErrorBoundary extends Component {
               >
                 Reload Page
               </button>
+              <a
+                href={`https://github.com/yourusername/OpenRouter-LLM-Console/issues/new?title=${encodeURIComponent(`Error: ${error?.name || 'Unknown'}`)}&body=${encodeURIComponent(`**Error Description:**\n${error?.message || 'No message'}\n\n**Context:**\n${JSON.stringify(this.props.context || {}, null, 2)}\n\n**Stack Trace:**\n\`\`\`\n${error?.stack || 'No stack trace'}\n\`\`\`\n\n**Browser:** ${navigator.userAgent}\n**Timestamp:** ${new Date().toISOString()}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: '10px 20px',
+                  background: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  textDecoration: 'none',
+                  display: 'inline-block',
+                }}
+              >
+                Report Issue
+              </a>
             </div>
 
             {isDev && error && (

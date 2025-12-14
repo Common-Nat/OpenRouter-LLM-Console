@@ -101,3 +101,26 @@ class DocumentQARequest(BaseModel):
     profile_id: Optional[int] = None
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=1, le=32768)
+
+
+class MessageSearchRequest(BaseModel):
+    query: str = Field(min_length=1, description="Search query (supports FTS5 syntax)")
+    session_id: Optional[str] = None
+    session_type: Optional[Literal["chat","code","documents","playground"]] = None
+    model_id: Optional[str] = None
+    start_date: Optional[str] = Field(None, description="ISO format date (YYYY-MM-DD or full ISO datetime)")
+    end_date: Optional[str] = Field(None, description="ISO format date (YYYY-MM-DD or full ISO datetime)")
+    limit: int = Field(default=50, ge=1, le=200)
+    offset: int = Field(default=0, ge=0)
+
+
+class MessageSearchResult(BaseModel):
+    id: str
+    session_id: str
+    role: str
+    content: str
+    created_at: str
+    session_type: str
+    session_title: Optional[str] = None
+    snippet: str  # Highlighted search snippet
+    rank: float  # BM25 relevance score

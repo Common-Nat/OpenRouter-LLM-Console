@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import ModelSelector from "./components/ModelSelector.jsx";
 import ProfileManager from "./components/ProfileManager.jsx";
+import SearchBar from "./components/SearchBar.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import ChatTab from "./tabs/ChatTab.jsx";
 import CodeTab from "./tabs/CodeTab.jsx";
@@ -46,6 +47,11 @@ export default function App() {
       </div>
 
       <ProfileManager value={profileId} onChange={setProfileId} onProfilesChange={setProfiles} />
+
+      <SearchBar onResultClick={(result) => {
+        console.log("Search result clicked:", result);
+        // TODO: Navigate to session or highlight message
+      }} />
 
       {body}
 

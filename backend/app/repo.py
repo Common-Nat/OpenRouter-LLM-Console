@@ -300,3 +300,92 @@ async def aggregate_usage_by_model(db: aiosqlite.Connection) -> List[aiosqlite.R
         """,
     )
     return await cur.fetchall()
+
+async def search_messages(
+    db: aiosqlite.Connection,
+    query: str,
+    *,
+    session_id: Optional[str] = None,
+    session_type: Optional[str] = None,
+    model_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> List[aiosqlite.Row]:
+    """
+    Full-text search across messages with optional filters.
+    Returns messages with highlighted snippets and session context.
+    
+    Args:
+        query: Search query (FTS5 syntax supported: "exact phrase", -exclude, prefix*)
+        session_id: Filter by specific session
+        session_type: Filter by session type (chat, code, documents, playground)
+        model_id: Filter by model used in the session
+        start_date: ISO format date string (YYYY-MM-DD or full ISO datetime)
+        end_date: ISO format date string (YYYY-MM-DD or full ISO datetime)
+        limit: Maximum results to return
+        offset: Pagination offset
+    """
+    # Validate and sanitize query
+    query = query.strip()
+    if not query:
+        return []  # Return empty list for empty queries
+    
+    # Sanitize FTS5 query - wrap in content column for proper NOT operator
+    # FTS5 uses NOT or - prefix within column queries
+    if " -" in query:
+        # Convert "term1 -term2" to "content:(term1 NOT term2)"
+        query = f"content:({query.replace(' -', ' NOT ')})"
+    
+    # Build the query with filters
+    sql_parts = ["""
+        SELECT 
+            m.id,
+            m.session_id,
+            m.role,
+            m.content,
+            m.created_at,
+            s.session_type,
+            s.title AS session_title,
+            snippet(messages_fts, 0, '<mark>', '</mark>', '...', 32) AS snippet,
+            bm25(messages_fts) AS rank
+        FROM messages_fts
+        JOIN messages m ON messages_fts.rowid = m.rowid
+        JOIN sessions s ON m.session_id = s.id
+        WHERE messages_fts MATCH ?
+    """]
+    
+    args: List[Any] = [query]
+    
+    # Add optional filters
+    if session_id:
+        sql_parts.append("AND m.session_id = ?")
+        args.append(session_id)
+    
+    if session_type:
+        sql_parts.append("AND s.session_type = ?")
+        args.append(session_type)
+    
+    if model_id:
+        # Join with usage_logs to filter by model
+        sql_parts.insert(1, "LEFT JOIN usage_logs ul ON m.session_id = ul.session_id")
+        sql_parts.append("AND ul.model_id = ?")
+        args.append(model_id)
+    
+    if start_date:
+        sql_parts.append("AND m.created_at >= ?")
+        args.append(start_date)
+    
+    if end_date:
+        sql_parts.append("AND m.created_at <= ?")
+        args.append(end_date)
+    
+    # Order by relevance (BM25 rank) and add pagination
+    sql_parts.append("ORDER BY rank")
+    sql_parts.append("LIMIT ? OFFSET ?")
+    args.extend([limit, offset])
+    
+    sql = " ".join(sql_parts)
+    cur = await db.execute(sql, args)
+    return await cur.fetchall()

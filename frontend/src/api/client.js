@@ -72,3 +72,7 @@ export async function apiDelete(path) {
     throw new Error('Network error');
   }
 }
+
+export async function searchMessages(queryString) {
+  return apiGet(`/api/messages/search?${queryString}`);
+}

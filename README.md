@@ -41,6 +41,15 @@ All traffic to OpenRouter goes through your own backend. The browser never holds
 - View usage statistics and cost breakdown by model
 - Export usage data for billing and analysis
 
+### Full-Text Message Search
+- **SQLite FTS5** powered search across all message history
+- **Advanced query syntax**: Exact phrases (`"error message"`), exclusions (`error -python`), prefix matching (`api*`)
+- **Smart filtering**: Filter by session type, date range, model used, or specific session
+- **Relevance ranking**: BM25 algorithm ranks results by relevance
+- **Highlighted snippets**: Search matches highlighted with context
+- **Debounced search**: 300ms input delay reduces server load
+- **Fast performance**: <100ms searches even with 10,000+ messages
+
 ## Architecture
 
 ### Frontend
@@ -79,6 +88,7 @@ Key API endpoints:
 - `DELETE /api/sessions/{id}` – Delete session
 - `GET /api/sessions/{id}/messages` – Retrieve message history
 - `POST /api/messages` – Create new message
+- `GET /api/messages/search` – Full-text search across messages with filters (query params: `query`, `session_id`, `session_type`, `model_id`, `start_date`, `end_date`, `limit`, `offset`)
 - `GET /api/stream` – SSE endpoint for streaming responses (query params: `session_id`, `model_id`, `profile_id`, `temperature`, `max_tokens`)
 - `GET /api/usage` – Token usage and cost tracking with optional filters
 - `GET /api/usage/summary` – Usage summary grouped by model
@@ -93,6 +103,7 @@ Main tables:
 - **profiles** – Reusable configuration presets with `name`, `system_prompt`, `temperature`, `max_tokens`, `openrouter_preset`
 - **sessions** – Chat/code/documents/playground sessions with `session_type`, `title`, `profile_id` (foreign key)
 - **messages** – Message history with `session_id`, `role` (system/user/assistant/tool), `content`
+- **messages_fts** – FTS5 virtual table for full-text search across message content with auto-sync triggers
 - **usage_logs** – Token usage and cost tracking with `session_id`, `profile_id`, `model_id`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `cost_usd`
 
 All tables use foreign keys with proper cascade/set null behavior. Database schema is initialized automatically on first startup with migration support.
@@ -242,6 +253,15 @@ Open your browser to the URL displayed by Vite (typically `http://localhost:5173
 ### Messages
 - `GET /api/sessions/{id}/messages` – Get messages for a session (chronologically ordered)
 - `POST /api/messages` – Create a new message (requires `session_id`, `role`, `content`)
+- `GET /api/messages/search` – Full-text search across all messages
+  - Query params: `query` (required, supports FTS5 syntax), `session_id`, `session_type`, `model_id`, `start_date`, `end_date`, `limit` (default 50, max 200), `offset` (default 0)
+  - Returns array of messages with highlighted snippets and relevance scores
+  - Search syntax:
+    - `"exact phrase"` – Match exact phrase
+    - `term1 -term2` – Include term1, exclude term2
+    - `prefix*` – Prefix matching
+    - `term1 OR term2` – Boolean logic
+  - See [SEARCH_FEATURE.md](SEARCH_FEATURE.md) for complete documentation
 
 ### Streaming
 - `GET /api/stream` – Server-Sent Events endpoint for streaming LLM responses
@@ -284,8 +304,10 @@ Test suite includes:
 - Model sync and filtering tests
 - Profile CRUD operations
 - Session and message management
+- **Full-text search** (keyword, phrase, exclusion, prefix, filters, ranking, pagination, highlighting)
 - Document upload and Q&A with path traversal protection
 - Streaming error handling (missing API key, invalid session, OpenRouter errors)
+- Migration system (forward and rollback tests)
 
 ## Security Features
 

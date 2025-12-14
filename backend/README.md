@@ -18,7 +18,7 @@ Self-hosted FastAPI backend for the OpenRouter LLM Console. Provides REST API an
 - `models.py` - Model catalog sync and filtering
 - `profiles.py` - Profile CRUD operations
 - `sessions.py` - Session management
-- `messages.py` - Message history
+- `messages.py` - Message history and full-text search (FTS5)
 - `stream.py` - SSE streaming endpoint
 - `usage.py` - Token usage and cost tracking
 - `documents.py` - Document upload and Q&A
@@ -119,6 +119,12 @@ SQLite database with the following tables:
 - `content` (TEXT)
 - `created_at` (TEXT)
 
+**messages_fts** - FTS5 virtual table for full-text search
+- `content` (indexed)
+- `role`, `session_id`, `created_at` (unindexed metadata)
+- Auto-synced via triggers on messages table
+- Supports advanced query syntax (phrases, exclusions, prefix matching)
+
 **usage_logs** - Token usage and cost tracking
 - `id` (TEXT, PK)
 - `session_id` (TEXT, FK to sessions)
@@ -141,7 +147,7 @@ Database is initialized automatically on first startup with foreign key constrai
 ### CRUD Endpoints
 - Profiles: `GET`, `POST`, `PUT`, `DELETE` on `/api/profiles`
 - Sessions: `GET`, `POST`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}` on `/api/sessions`
-- Messages: `GET /api/sessions/{id}/messages`, `POST /api/messages`
+- Messages: `GET /api/sessions/{id}/messages`, `POST /api/messages`, `GET /api/messages/search` (full-text search with filters)
 - Documents: `POST /api/documents/upload`, `GET`, `POST /{id}/qa`, `DELETE /{id}` on `/api/documents`
 - Usage: `GET /api/usage`, `GET /api/usage/summary`
 
@@ -173,9 +179,11 @@ Test files:
 - `test_db_init.py` - Database initialization
 - `test_sessions.py` - Session CRUD
 - `test_messages.py` - Message operations
+- `test_search.py` - Full-text search (10 tests covering FTS5 syntax, filters, ranking, pagination)
 - `test_documents.py` - Document upload/download with security tests
 - `test_stream_errors.py` - Streaming error handling
 - `test_upload.py` - File upload validation
+- `test_migrations.py` - Migration forward/rollback cycles
 
 ## Development
 

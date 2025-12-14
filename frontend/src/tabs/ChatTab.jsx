@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPost } from "../api/client.js";
+import useStream from "../hooks/useStream.js";
 
 function useAutoScroll(dep) {
   const ref = useRef(null);
@@ -16,13 +17,12 @@ export default function ChatTab({ modelId, profileId, profiles = [] }) {
   const [sessions, setSessions] = useState([]);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
-  const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
 
   const selectedProfile = useMemo(() => profiles.find(p => String(p.id) === String(profileId)), [profiles, profileId]);
 
   const logRef = useAutoScroll(messages.length);
-  const streamRef = useRef(null);
+  const { start: startStream, abort: abortStream, streaming } = useStream();
 
   async function loadSessions() {
     const data = await apiGet("/api/sessions?limit=50");
@@ -72,10 +72,6 @@ export default function ChatTab({ modelId, profileId, profiles = [] }) {
     const tmpId = `tmp-${Date.now()}`;
     setMessages(m => [...m, { id: tmpId, session_id: sid, role: "assistant", content: "", created_at: new Date().toISOString() }]);
 
-    if (streamRef.current) {
-      streamRef.current.close();
-    }
-
     const qs = new URLSearchParams({
       session_id: sid,
       model_id: modelId,
@@ -85,53 +81,26 @@ export default function ChatTab({ modelId, profileId, profiles = [] }) {
     if (selectedProfile?.temperature !== undefined && selectedProfile?.temperature !== null) qs.set("temperature", String(selectedProfile.temperature));
     if (selectedProfile?.max_tokens !== undefined && selectedProfile?.max_tokens !== null) qs.set("max_tokens", String(selectedProfile.max_tokens));
 
-    const es = new EventSource(`/api/stream?${qs.toString()}`);
-    streamRef.current = es;
-    setStreaming(true);
-
-    const finishStream = () => {
-      es.close();
-      if (streamRef.current === es) {
-        streamRef.current = null;
-      }
-      setStreaming(false);
-      // refresh from DB to replace tmp with saved assistant message
-      loadMessages(sid).catch(()=>{});
-    };
-
-    es.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (msg.type === "token") {
-          setMessages(m => m.map(x => x.id === tmpId ? { ...x, content: x.content + msg.token } : x));
-        } else if (msg.type === "meta" && msg.message === "stream_end") {
-          finishStream();
-        } else if (es.readyState === EventSource.CLOSED) {
-          finishStream();
-        }
-      } catch { /* ignore */ }
-    };
-
-    es.addEventListener("error", (e) => {
-      setError("Stream error. Check backend logs and OPENROUTER_API_KEY.");
-      finishStream();
+    startStream(`/api/stream?${qs.toString()}`, {
+      onToken: (token) => {
+        setMessages(m => m.map(x => x.id === tmpId ? { ...x, content: x.content + token } : x));
+      },
+      onDone: () => {
+        // refresh from DB to replace tmp with saved assistant message
+        loadMessages(sid).catch(()=>{});
+      },
+      onError: () => {
+        setError("Stream error. Check backend logs and OPENROUTER_API_KEY.");
+        loadMessages(sid).catch(()=>{});
+      },
     });
-
-    es.onerror = () => {
-      finishStream();
-    };
-
-    es.addEventListener("message", (e)=>{ /* already handled */ });
   }
 
   useEffect(() => {
     return () => {
-      if (streamRef.current) {
-        streamRef.current.close();
-        streamRef.current = null;
-      }
+      abortStream();
     };
-  }, []);
+  }, [abortStream]);
 
   return (
     <div className="row wrap">
@@ -173,7 +142,13 @@ export default function ChatTab({ modelId, profileId, profiles = [] }) {
           <div className="hr" />
           <div className="toolbar">
             <input className="input" style={{flex:1, minWidth: 220}} placeholder="Type a message…" value={draft} onChange={(e)=>setDraft(e.target.value)} onKeyDown={(e)=>{ if (e.key==="Enter" && !e.shiftKey){ e.preventDefault(); if(!streaming) send(); } }} />
-            <button className="btn primary" onClick={send} disabled={streaming}>Send</button>
+            {streaming ? (
+              <button className="btn" onClick={() => { abortStream(); if (sessionId) loadMessages(sessionId).catch(()=>{}); }}>
+                Stop generation
+              </button>
+            ) : (
+              <button className="btn primary" onClick={send} disabled={streaming}>Send</button>
+            )}
           </div>
           <div className="muted small" style={{marginTop: 8}}>
             Tip: press Enter to send. Streaming saves the final assistant message into SQLite automatically.

@@ -55,12 +55,15 @@ FastAPI application using:
 Key API endpoints:
 - `POST /api/models/sync` – Fetches and caches OpenRouter's model catalog
 - `GET /api/models` – Returns cached models with optional filters
-- `GET/POST /api/profiles` – CRUD operations for local profiles
+- `GET /api/profiles` – List all profiles
+- `POST /api/profiles` – Create new profiles
 - `POST /api/sessions` – Create chat/code/documents/playground sessions
-- `GET /api/sessions/{id}/messages` and `POST /api/messages` – Message history
+- `GET /api/sessions/{id}/messages` – Retrieve message history
+- `POST /api/messages` – Create new messages
 - `GET /api/stream` – SSE endpoint for streaming responses
 - `GET /api/usage` – Token usage and cost tracking
-- `POST /api/documents/upload` and `POST /api/documents/{id}/qa` – Document operations
+- `POST /api/documents/upload` – Upload documents
+- `POST /api/documents/{id}/qa` – Ask questions about documents
 
 ### Database (SQLite)
 Main tables:

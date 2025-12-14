@@ -2,6 +2,7 @@ from __future__ import annotations
 import uuid
 from typing import Any, Dict, List, Optional
 import aiosqlite
+from .core.cache import profile_cache, model_cache
 
 def _uuid() -> str:
     return str(uuid.uuid4())
@@ -40,9 +41,17 @@ async def upsert_models(db: aiosqlite.Connection, rows: List[Dict[str, Any]]) ->
         )
         count += 1
     await db.commit()
+    # Invalidate model cache after sync
+    model_cache.clear()
     return count
 
 async def list_models(db: aiosqlite.Connection, *, reasoning: Optional[bool]=None, max_price: Optional[float]=None, min_context: Optional[int]=None) -> List[aiosqlite.Row]:
+    # Build cache key from filters
+    cache_key = f"models_r{reasoning}_p{max_price}_c{min_context}"
+    cached = model_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
     q = "SELECT id, openrouter_id, name, context_length, pricing_prompt, pricing_completion, is_reasoning FROM models WHERE 1=1"
     args: List[Any] = []
     if reasoning is not None:
@@ -57,7 +66,9 @@ async def list_models(db: aiosqlite.Connection, *, reasoning: Optional[bool]=Non
         args.extend([max_price, max_price])
     q += " ORDER BY name COLLATE NOCASE ASC"
     cur = await db.execute(q, args)
-    return await cur.fetchall()
+    result = await cur.fetchall()
+    model_cache.set(cache_key, result)
+    return result
 
 async def create_profile(db: aiosqlite.Connection, data: Dict[str, Any]) -> int:
     cur = await db.execute(
@@ -71,14 +82,24 @@ async def create_profile(db: aiosqlite.Connection, data: Dict[str, Any]) -> int:
         ),
     )
     await db.commit()
+    # Invalidate profiles list cache
+    profile_cache.invalidate("profiles_all")
     return cur.lastrowid
 
 async def get_profile(db: aiosqlite.Connection, profile_id: int) -> Optional[aiosqlite.Row]:
+    cache_key = f"profile_{profile_id}"
+    cached = profile_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
     cur = await db.execute(
         "SELECT id, name, system_prompt, temperature, max_tokens, openrouter_preset FROM profiles WHERE id=?",
         (profile_id,),
     )
-    return await cur.fetchone()
+    result = await cur.fetchone()
+    if result:
+        profile_cache.set(cache_key, result)
+    return result
 
 async def update_profile(db: aiosqlite.Connection, profile_id: int, data: Dict[str, Any]) -> bool:
     cur = await db.execute(
@@ -97,18 +118,31 @@ async def update_profile(db: aiosqlite.Connection, profile_id: int, data: Dict[s
         ),
     )
     await db.commit()
+    # Invalidate cache for this profile
+    profile_cache.invalidate(f"profile_{profile_id}")
+    profile_cache.invalidate("profiles_all")
     return cur.rowcount > 0
 
 async def delete_profile(db: aiosqlite.Connection, profile_id: int) -> bool:
     cur = await db.execute("DELETE FROM profiles WHERE id=?", (profile_id,))
     await db.commit()
+    # Invalidate cache for this profile and list
+    profile_cache.invalidate(f"profile_{profile_id}")
+    profile_cache.invalidate("profiles_all")
     return cur.rowcount > 0
 
 async def list_profiles(db: aiosqlite.Connection) -> List[aiosqlite.Row]:
+    cache_key = "profiles_all"
+    cached = profile_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
     cur = await db.execute(
         "SELECT id, name, system_prompt, temperature, max_tokens, openrouter_preset FROM profiles ORDER BY id DESC"
     )
-    return await cur.fetchall()
+    result = await cur.fetchall()
+    profile_cache.set(cache_key, result)
+    return result
 
 async def create_session(db: aiosqlite.Connection, data: Dict[str, Any]) -> str:
     sid = _uuid()

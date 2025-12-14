@@ -22,6 +22,7 @@ from .api.routes.stream import router as stream_router
 from .api.routes.usage import router as usage_router
 from .api.routes.documents import router as documents_router
 from .api.routes.logs import router as logs_router
+from .api.routes.cache import router as cache_router
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -160,3 +161,4 @@ app.include_router(stream_router, prefix="/api")
 app.include_router(usage_router, prefix="/api")
 app.include_router(documents_router, prefix="/api")
 app.include_router(logs_router, prefix="/api/logs", tags=["logs"])
+app.include_router(cache_router, prefix="/api")

@@ -67,6 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_usage_logs_model_created ON usage_logs(model_id, 
 async def init_db() -> None:
     Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
     async with aiosqlite.connect(settings.db_path) as db:
+        await db.execute("PRAGMA journal_mode=WAL;")
         await db.executescript(INIT_SQL)
         await _migrate_profiles(db)
         await db.commit()

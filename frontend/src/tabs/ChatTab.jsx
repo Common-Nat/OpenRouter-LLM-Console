@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPost } from "../api/client.js";
 import useStream from "../hooks/useStream.js";
+import UsagePanel from "../components/UsagePanel.jsx";
 
 function useAutoScroll(dep) {
   const ref = useRef(null);
@@ -126,6 +127,8 @@ export default function ChatTab({ modelId, profileId, profiles = [] }) {
           <div className="muted small">Profile: <b>{selectedProfile ? selectedProfile.name : "none"}</b></div>
           {error && <div style={{marginTop: 10, color:"#ffb4b4"}}>{error}</div>}
         </div>
+
+        <UsagePanel sessionId={sessionId} streaming={streaming} />
       </div>
 
       <div className="col" style={{flex: 2, minWidth: 360}}>

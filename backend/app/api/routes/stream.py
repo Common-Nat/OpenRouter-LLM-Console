@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 import aiosqlite
@@ -47,9 +48,13 @@ async def stream(
 
     async def gen():
         assistant_accum = ""
-        yield sse_data({"type": "meta", "message": "stream_start"})
+        usage_counts = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        yield sse_data({"message": "stream_start"}, event="start")
+
         try:
-            async for line in stream_chat_completions(model=model_id, messages=messages, temperature=resolved_temperature, max_tokens=resolved_max_tokens):
+            async for line in stream_chat_completions(
+                model=model_id, messages=messages, temperature=resolved_temperature, max_tokens=resolved_max_tokens
+            ):
                 if not line:
                     continue
                 if line.startswith("data: "):
@@ -60,11 +65,24 @@ async def stream(
                 if chunk == "[DONE]":
                     break
 
-                # Forward raw chunks, but also attempt to extract token deltas for convenience
                 token = None
+                obj = None
+
                 try:
                     obj = json.loads(chunk)
                     delta = (((obj.get("choices") or [{}])[0]).get("delta") or {})
+
+                    usage = obj.get("usage") or delta.get("usage") or ((obj.get("choices") or [{}])[0].get("usage"))
+                    if isinstance(usage, dict):
+                        usage_counts["prompt_tokens"] = int(usage.get("prompt_tokens") or usage_counts["prompt_tokens"] or 0)
+                        usage_counts["completion_tokens"] = int(
+                            usage.get("completion_tokens") or usage_counts["completion_tokens"] or 0
+                        )
+                        usage_counts["total_tokens"] = int(
+                            usage.get("total_tokens")
+                            or usage_counts["total_tokens"]
+                            or usage_counts["prompt_tokens"] + usage_counts["completion_tokens"]
+                        )
 
                     content = delta.get("content")
                     content_parts = []
@@ -81,7 +99,6 @@ async def stream(
 
                     token = "".join(content_parts)
 
-                    # Fall back to tool call text if no content was found
                     if not token:
                         tool_calls = delta.get("tool_calls") or []
                         tool_text_parts = []
@@ -103,29 +120,43 @@ async def stream(
 
                 if token:
                     assistant_accum += token
-                    yield sse_data({"type": "token", "token": token})
+                    yield sse_data({"token": token}, event="token")
                 else:
-                    yield sse_data({"type": "raw", "data": chunk})
+                    yield sse_data({"raw": chunk}, event="token")
+        except asyncio.CancelledError:
+            return
         except OpenRouterError as e:
             yield sse_data(
                 {
-                    "type": "openrouter_error",
                     "status": e.status_code,
                     "message": str(e),
                     "request_id": request_id_ctx_var.get("-"),
                 },
-                event="openrouter_error",
+                event="error",
             )
             return
         except Exception as e:
             yield sse_data(
-                {"type": "stream_error", "message": str(e), "request_id": request_id_ctx_var.get("-")},
-                event="stream_error",
+                {"status": 500, "message": str(e), "request_id": request_id_ctx_var.get("-")},
+                event="error",
             )
             return
-        finally:
+        else:
             if assistant_accum.strip():
                 await repo.add_message(db, session_id, "assistant", assistant_accum)
-            yield sse_data({"type": "meta", "message": "stream_end"})
+
+            await repo.insert_usage_log(
+                db,
+                session_id=session_id,
+                model_id=model_id,
+                prompt_tokens=usage_counts["prompt_tokens"],
+                completion_tokens=usage_counts["completion_tokens"],
+                profile_id=resolved_profile_id,
+            )
+
+            yield sse_data(
+                {"message": "stream_end", "assistant": assistant_accum, "usage": usage_counts},
+                event="done",
+            )
 
     return StreamingResponse(gen(), media_type="text/event-stream")

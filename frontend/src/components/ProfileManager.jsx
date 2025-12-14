@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiDelete, apiGet, apiPost, apiPut } from "../api/client.js";
 
-const BLANK_FORM = { name: "", system_prompt: "", temperature: "0.7", max_tokens: "2048" };
+const BLANK_FORM = { name: "", system_prompt: "", temperature: "0.7", max_tokens: "2048", openrouter_preset: "" };
 
 export default function ProfileManager({ value, onChange, onProfilesChange }) {
   const [profiles, setProfiles] = useState([]);
@@ -11,6 +11,12 @@ export default function ProfileManager({ value, onChange, onProfilesChange }) {
   const [error, setError] = useState("");
 
   const selectedProfile = useMemo(() => profiles.find(p => String(p.id) === String(value)), [profiles, value]);
+  const presetShortcuts = useMemo(() => {
+    const presets = profiles
+      .map(p => p.openrouter_preset)
+      .filter(Boolean);
+    return Array.from(new Set(presets));
+  }, [profiles]);
 
   useEffect(() => { refresh(); }, []);
   useEffect(() => { onProfilesChange?.(profiles); }, [profiles, onProfilesChange]);
@@ -45,6 +51,7 @@ export default function ProfileManager({ value, onChange, onProfilesChange }) {
       system_prompt: profile.system_prompt || "",
       temperature: String(profile.temperature ?? ""),
       max_tokens: String(profile.max_tokens ?? ""),
+      openrouter_preset: profile.openrouter_preset || "",
     });
   }
 
@@ -54,6 +61,7 @@ export default function ProfileManager({ value, onChange, onProfilesChange }) {
       system_prompt: form.system_prompt.trim() || null,
       temperature: parseFloat(form.temperature || "0.7"),
       max_tokens: parseInt(form.max_tokens || "2048", 10),
+      openrouter_preset: form.openrouter_preset.trim() || null,
     };
   }
 
@@ -126,6 +134,13 @@ export default function ProfileManager({ value, onChange, onProfilesChange }) {
             <>
               <div><b>{selectedProfile.name}</b></div>
               <div>Temp {selectedProfile.temperature} • Max tokens {selectedProfile.max_tokens}</div>
+              <div className="muted small">
+                {selectedProfile.openrouter_preset ? (
+                  <>Preset: {selectedProfile.openrouter_preset.startsWith("@preset/") ? selectedProfile.openrouter_preset : `@preset/${selectedProfile.openrouter_preset}`}</>
+                ) : (
+                  <>No preset (uses base model)</>
+                )}
+              </div>
             </>
           ) : (
             <div>No profile selected.</div>
@@ -142,6 +157,13 @@ export default function ProfileManager({ value, onChange, onProfilesChange }) {
             <div style={{ fontWeight: 600 }}>{p.name}</div>
             <div className="muted small" style={{ margin: "6px 0" }}>
               Temp {p.temperature} • Max tokens {p.max_tokens}
+            </div>
+            <div className="muted small" style={{ margin: "6px 0" }}>
+              {p.openrouter_preset ? (
+                <>Preset: {p.openrouter_preset.startsWith("@preset/") ? p.openrouter_preset : `@preset/${p.openrouter_preset}`}</>
+              ) : (
+                <>No preset set</>
+              )}
             </div>
             {p.system_prompt ? (
               <div className="muted small" style={{ whiteSpace: "pre-wrap" }}>
@@ -186,7 +208,32 @@ export default function ProfileManager({ value, onChange, onProfilesChange }) {
           value={form.max_tokens}
           onChange={(e) => setForm({ ...form, max_tokens: e.target.value })}
         />
+        <input
+          className="input"
+          style={{ minWidth: 200 }}
+          placeholder="OpenRouter preset (optional)"
+          value={form.openrouter_preset}
+          onChange={(e) => setForm({ ...form, openrouter_preset: e.target.value })}
+        />
       </div>
+      {presetShortcuts.length > 0 && (
+        <div className="row wrap" style={{ gap: 8, marginTop: 6, alignItems: "center" }}>
+          <div className="muted small">Quick-select preset:</div>
+          {presetShortcuts.map(preset => (
+            <button
+              key={preset}
+              className="btn"
+              type="button"
+              onClick={() => setForm({ ...form, openrouter_preset: preset })}
+            >
+              {preset.startsWith("@preset/") ? preset : `@preset/${preset}`}
+            </button>
+          ))}
+          <button className="btn" type="button" onClick={() => setForm({ ...form, openrouter_preset: "" })}>
+            Clear preset
+          </button>
+        </div>
+      )}
       <textarea
         className="input"
         style={{ marginTop: 10, minHeight: 80 }}

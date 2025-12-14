@@ -13,14 +13,27 @@ function useAutoScroll(dep) {
   return ref;
 }
 
-export default function ChatTab({ modelId, profileId, profiles = [] }) {
+export default function ChatTab({ modelId, profileId, profiles = [], selectedProfile = null }) {
   const [sessionId, setSessionId] = useState("");
   const [sessions, setSessions] = useState([]);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
 
-  const selectedProfile = useMemo(() => profiles.find(p => String(p.id) === String(profileId)), [profiles, profileId]);
+  const resolvedProfile = useMemo(
+    () => selectedProfile || profiles.find(p => String(p.id) === String(profileId)),
+    [profiles, profileId, selectedProfile],
+  );
+  const presetLabel = useMemo(() => {
+    if (!resolvedProfile?.openrouter_preset) return "";
+    return resolvedProfile.openrouter_preset.startsWith("@preset/")
+      ? resolvedProfile.openrouter_preset
+      : `@preset/${resolvedProfile.openrouter_preset}`;
+  }, [resolvedProfile]);
+  const resolvedModelLabel = useMemo(() => {
+    if (!modelId) return "none";
+    return presetLabel ? `${modelId}${presetLabel}` : modelId;
+  }, [modelId, presetLabel]);
 
   const logRef = useAutoScroll(messages.length);
   const { start: startStream, abort: abortStream, streaming } = useStream();
@@ -79,8 +92,8 @@ export default function ChatTab({ modelId, profileId, profiles = [] }) {
     });
 
     if (profileId !== undefined && profileId !== null) qs.set("profile_id", profileId);
-    if (selectedProfile?.temperature !== undefined && selectedProfile?.temperature !== null) qs.set("temperature", String(selectedProfile.temperature));
-    if (selectedProfile?.max_tokens !== undefined && selectedProfile?.max_tokens !== null) qs.set("max_tokens", String(selectedProfile.max_tokens));
+    if (resolvedProfile?.temperature !== undefined && resolvedProfile?.temperature !== null) qs.set("temperature", String(resolvedProfile.temperature));
+    if (resolvedProfile?.max_tokens !== undefined && resolvedProfile?.max_tokens !== null) qs.set("max_tokens", String(resolvedProfile.max_tokens));
 
     startStream(`/api/stream?${qs.toString()}`, {
       onToken: (token) => {
@@ -123,8 +136,9 @@ export default function ChatTab({ modelId, profileId, profiles = [] }) {
           </select>
 
           <div className="hr" />
-          <div className="muted small">Model: <b>{modelId || "none"}</b></div>
-          <div className="muted small">Profile: <b>{selectedProfile ? selectedProfile.name : "none"}</b></div>
+          <div className="muted small">Profile: <b>{resolvedProfile ? resolvedProfile.name : "none"}</b></div>
+          <div className="muted small">Preset: <b>{presetLabel || "none"}</b></div>
+          <div className="muted small">Model (with preset): <b>{resolvedModelLabel}</b></div>
           {error && <div style={{marginTop: 10, color:"#ffb4b4"}}>{error}</div>}
         </div>
 
@@ -133,6 +147,16 @@ export default function ChatTab({ modelId, profileId, profiles = [] }) {
 
       <div className="col" style={{flex: 2, minWidth: 360}}>
         <div className="card">
+          <div className="topbar" style={{ marginBottom: 6 }}>
+            <div>
+              <div style={{fontWeight: 700}}>Chat</div>
+              <div className="muted small">Using {resolvedModelLabel} {presetLabel ? "from profile" : "with no preset"}</div>
+            </div>
+            <div className="muted small" style={{ textAlign: "right" }}>
+              <div>Profile: <b>{resolvedProfile?.name || "none"}</b></div>
+              <div>Preset: <b>{presetLabel || "none"}</b></div>
+            </div>
+          </div>
           <div className="chatlog" ref={logRef}>
             {messages.map(m => (
               <div key={m.id} className={`bubble ${m.role === "user" ? "user" : "assistant"}`}>

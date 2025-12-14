@@ -103,8 +103,11 @@ export default function ChatTab({ modelId, profileId, profiles = [], selectedPro
         // refresh from DB to replace tmp with saved assistant message
         loadMessages(sid).catch(()=>{});
       },
-      onError: () => {
-        setError("Stream error. Check backend logs and OPENROUTER_API_KEY.");
+      onError: (payload) => {
+        const message = typeof payload === "object" && payload !== null
+          ? payload.error || payload.message || JSON.stringify(payload)
+          : payload || "Stream error. Check backend logs and OPENROUTER_API_KEY.";
+        setError(message);
         loadMessages(sid).catch(()=>{});
       },
     });
@@ -137,9 +140,8 @@ export default function ChatTab({ modelId, profileId, profiles = [], selectedPro
 
           <div className="hr" />
           <div className="muted small">Profile: <b>{resolvedProfile ? resolvedProfile.name : "none"}</b></div>
-          <div className="muted small">Preset: <b>{presetLabel || "none"}</b></div>
-          <div className="muted small">Model (with preset): <b>{resolvedModelLabel}</b></div>
-          {error && <div style={{marginTop: 10, color:"#ffb4b4"}}>{error}</div>}
+            <div className="muted small">Preset: <b>{presetLabel || "none"}</b></div>
+            <div className="muted small">Model (with preset): <b>{resolvedModelLabel}</b></div>
         </div>
 
         <UsagePanel sessionId={sessionId} streaming={streaming} />
@@ -157,6 +159,11 @@ export default function ChatTab({ modelId, profileId, profiles = [], selectedPro
               <div>Preset: <b>{presetLabel || "none"}</b></div>
             </div>
           </div>
+          {error && (
+            <div className="banner error" style={{ marginBottom: 10 }}>
+              {error}
+            </div>
+          )}
           <div className="chatlog" ref={logRef}>
             {messages.map(m => (
               <div key={m.id} className={`bubble ${m.role === "user" ? "user" : "assistant"}`}>
@@ -170,7 +177,7 @@ export default function ChatTab({ modelId, profileId, profiles = [], selectedPro
           <div className="toolbar">
             <input className="input" style={{flex:1, minWidth: 220}} placeholder="Type a message…" value={draft} onChange={(e)=>setDraft(e.target.value)} onKeyDown={(e)=>{ if (e.key==="Enter" && !e.shiftKey){ e.preventDefault(); if(!streaming) send(); } }} />
             {streaming ? (
-              <button className="btn" onClick={() => { abortStream(); if (sessionId) loadMessages(sessionId).catch(()=>{}); }}>
+              <button className="btn" onClick={() => { setError(""); abortStream(); if (sessionId) loadMessages(sessionId).catch(()=>{}); }}>
                 Stop generation
               </button>
             ) : (

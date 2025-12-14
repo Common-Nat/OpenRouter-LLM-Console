@@ -7,10 +7,11 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from .core.config import settings
 from .core.logging_config import configure_logging, request_id_ctx_var
-from .core.ratelimit import limiter
+from .core.ratelimit import limiter, RATE_LIMITS
 from .db import init_db
 from .api.routes.health import router as health_router
 from .api.routes.models import router as models_router
@@ -92,6 +93,43 @@ async def log_requests(request: Request, call_next):
 
     try:
         response = await call_next(request)
+        
+        # Add rate limit headers if rate limiting is enabled
+        if settings.rate_limit_enabled:
+            try:
+                # Get client identifier (IP address)
+                client_id = get_remote_address(request)
+                
+                # Parse the rate limit for this endpoint
+                # Extract limit info from limiter's internal state
+                # Note: This is a best-effort approach since SlowAPI doesn't expose this directly
+                path = request.url.path
+                
+                # Add generic rate limit headers
+                # We don't have per-request remaining counts without deeper integration
+                # So we add the configured limits as informational headers
+                if "/stream" in path:
+                    response.headers["X-RateLimit-Limit"] = RATE_LIMITS["stream"]
+                elif "/models/sync" in path:
+                    response.headers["X-RateLimit-Limit"] = RATE_LIMITS["model_sync"]
+                elif "/documents/upload" in path:
+                    response.headers["X-RateLimit-Limit"] = RATE_LIMITS["document_upload"]
+                elif "/sessions" in path:
+                    response.headers["X-RateLimit-Limit"] = RATE_LIMITS["sessions"]
+                elif "/messages" in path:
+                    response.headers["X-RateLimit-Limit"] = RATE_LIMITS["messages"]
+                elif "/profiles" in path:
+                    response.headers["X-RateLimit-Limit"] = RATE_LIMITS["profiles"]
+                elif "/models" in path:
+                    response.headers["X-RateLimit-Limit"] = RATE_LIMITS["models_list"]
+                elif "/usage" in path:
+                    response.headers["X-RateLimit-Limit"] = RATE_LIMITS["usage_logs"]
+                elif "/health" in path:
+                    response.headers["X-RateLimit-Limit"] = RATE_LIMITS["health_check"]
+            except Exception as e:
+                # Don't fail the request if header addition fails
+                logger.debug(f"Failed to add rate limit headers: {e}")
+        
         return response
     except Exception:
         logger.exception("Unhandled exception during request", extra={"path": request.url.path, "method": request.method})

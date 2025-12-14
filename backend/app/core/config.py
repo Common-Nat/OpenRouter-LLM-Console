@@ -18,9 +18,21 @@ class Settings(BaseSettings):
     
     # Rate limiting configuration (requests per time period)
     rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+    
+    # Critical resource-intensive endpoints
     rate_limit_stream: str = Field(default="20 per minute", alias="RATE_LIMIT_STREAM")
-    rate_limit_model_sync: str = Field(default="5 per hour", alias="RATE_LIMIT_MODEL_SYNC")
-    rate_limit_upload: str = Field(default="30 per minute", alias="RATE_LIMIT_UPLOAD")
+    rate_limit_model_sync: str = Field(default="60 per hour", alias="RATE_LIMIT_MODEL_SYNC")
+    rate_limit_upload: str = Field(default="50 per minute", alias="RATE_LIMIT_UPLOAD")
+    
+    # Standard CRUD operations
+    rate_limit_sessions: str = Field(default="60 per minute", alias="RATE_LIMIT_SESSIONS")
+    rate_limit_messages: str = Field(default="100 per minute", alias="RATE_LIMIT_MESSAGES")
+    rate_limit_profiles: str = Field(default="60 per minute", alias="RATE_LIMIT_PROFILES")
+    
+    # Read-only operations
+    rate_limit_models_list: str = Field(default="120 per minute", alias="RATE_LIMIT_MODELS_LIST")
+    rate_limit_usage_logs: str = Field(default="120 per minute", alias="RATE_LIMIT_USAGE_LOGS")
+    rate_limit_health_check: str = Field(default="300 per minute", alias="RATE_LIMIT_HEALTH_CHECK")
 
     @field_validator('openrouter_api_key')
     @classmethod

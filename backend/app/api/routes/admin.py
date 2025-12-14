@@ -37,7 +37,7 @@ async def validate_sqlite_db(db_path: Path) -> bool:
         async with aiosqlite.connect(db_path) as db:
             cursor = await db.execute("PRAGMA integrity_check")
             result = await cursor.fetchone()
-            return result and result[0] == "ok"
+            return bool(result and result[0] == "ok")
     except Exception as e:
         logger.error(f"SQLite validation failed: {e}")
         return False
@@ -133,7 +133,7 @@ async def restore_backup(
     temp_path = None
     try:
         # Validate file extension
-        if not file.filename.endswith('.db'):
+        if not file.filename or not file.filename.endswith('.db'):
             raise HTTPException(
                 status_code=400,
                 detail={

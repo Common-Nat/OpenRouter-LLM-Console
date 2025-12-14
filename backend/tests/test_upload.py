@@ -5,7 +5,7 @@ import io
 from pathlib import Path
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 
 from app.main import app
 from app.core.config import settings
@@ -14,7 +14,7 @@ from app.core.config import settings
 @pytest.mark.asyncio
 async def test_upload_document_success():
     """Test successful document upload"""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         content = b"This is a test document content"
         files = {"file": ("test_doc.txt", io.BytesIO(content), "text/plain")}
         
@@ -38,7 +38,7 @@ async def test_upload_document_success():
 @pytest.mark.asyncio
 async def test_upload_document_invalid_extension():
     """Test upload with invalid file extension"""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         content = b"executable content"
         files = {"file": ("malware.exe", io.BytesIO(content), "application/octet-stream")}
         
@@ -51,7 +51,7 @@ async def test_upload_document_invalid_extension():
 @pytest.mark.asyncio
 async def test_upload_document_too_large():
     """Test upload with file exceeding size limit"""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # Create content larger than 10MB
         content = b"x" * (11 * 1024 * 1024)
         files = {"file": ("large_file.txt", io.BytesIO(content), "text/plain")}
@@ -65,7 +65,7 @@ async def test_upload_document_too_large():
 @pytest.mark.asyncio
 async def test_upload_document_duplicate_name():
     """Test uploading file with duplicate name gets renamed"""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         content1 = b"First file content"
         content2 = b"Second file content"
         
@@ -89,7 +89,7 @@ async def test_upload_document_duplicate_name():
 @pytest.mark.asyncio
 async def test_delete_document_success():
     """Test successful document deletion"""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # First upload a document
         content = b"Document to delete"
         files = {"file": ("delete_me.txt", io.BytesIO(content), "text/plain")}
@@ -110,7 +110,7 @@ async def test_delete_document_success():
 @pytest.mark.asyncio
 async def test_delete_document_not_found():
     """Test deleting non-existent document"""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.delete("/api/documents/nonexistent.txt")
         assert response.status_code == 404
         assert "not found" in response.json()["detail"]
@@ -119,7 +119,7 @@ async def test_delete_document_not_found():
 @pytest.mark.asyncio
 async def test_delete_document_path_traversal():
     """Test that path traversal is prevented in delete endpoint"""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.delete("/api/documents/../../../etc/passwd")
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()

@@ -14,15 +14,17 @@ export default function App() {
   const [profileId, setProfileId] = useState("");
   const [profiles, setProfiles] = useState([]);
 
+  const selectedProfile = useMemo(() => profiles.find(p => String(p.id) === String(profileId)), [profiles, profileId]);
+
   const body = useMemo(() => {
     switch (tab) {
-      case "Chat": return <ChatTab modelId={modelId} profileId={profileId} profiles={profiles} />;
-      case "Code": return <CodeTab />;
+      case "Chat": return <ChatTab modelId={modelId} profileId={profileId} profiles={profiles} selectedProfile={selectedProfile} />;
+      case "Code": return <CodeTab modelId={modelId} profile={selectedProfile} />;
       case "Documents": return <DocumentsTab />;
       case "Playground": return <PlaygroundTab />;
       default: return null;
     }
-  }, [tab, modelId, profileId, profiles]);
+  }, [tab, modelId, profileId, profiles, selectedProfile]);
 
   return (
     <div className="container">

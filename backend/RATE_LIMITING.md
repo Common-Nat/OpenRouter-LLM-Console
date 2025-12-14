@@ -27,14 +27,16 @@ Rate limiting has been implemented across all API endpoints to protect against a
 | Endpoint Category | Limit | Rationale |
 |------------------|-------|-----------|
 | **Stream** | 20/minute | Most expensive - calls OpenRouter API |
-| **Model Sync** | 5/hour | External API call, infrequent operation |
-| **Document Upload** | 30/minute | Resource intensive (file I/O, storage) |
+| **Model Sync** | 60/hour ⬆️ | External API call, teams need frequent updates |
+| **Document Upload** | 50/minute ⬆️ | Resource intensive, batch uploads common |
 | **Sessions** | 60/minute | Standard CRUD operations |
 | **Messages** | 100/minute | High-frequency user interactions |
 | **Profiles** | 60/minute | Standard CRUD operations |
 | **Models List** | 120/minute | Read-heavy, cacheable |
 | **Usage Logs** | 120/minute | Analytics queries |
 | **Health Check** | 300/minute | Monitoring endpoints |
+
+> **Note:** Model Sync was increased from 5/hour → 60/hour and Document Upload from 30/min → 50/min to improve developer experience while maintaining protection.
 
 ## Configuration
 
@@ -48,8 +50,14 @@ RATE_LIMIT_ENABLED=true
 
 # Custom rate limits (override defaults)
 RATE_LIMIT_STREAM=20 per minute
-RATE_LIMIT_MODEL_SYNC=5 per hour
-RATE_LIMIT_UPLOAD=30 per minute
+RATE_LIMIT_MODEL_SYNC=60 per hour
+RATE_LIMIT_UPLOAD=50 per minute
+RATE_LIMIT_SESSIONS=60 per minute
+RATE_LIMIT_MESSAGES=100 per minute
+RATE_LIMIT_PROFILES=60 per minute
+RATE_LIMIT_MODELS_LIST=120 per minute
+RATE_LIMIT_USAGE_LOGS=120 per minute
+RATE_LIMIT_HEALTH_CHECK=300 per minute
 ```
 
 ### Format
@@ -202,7 +210,47 @@ RATE_LIMIT_ENABLED=false
 
 Then modify [main.py](app/main.py) to conditionally register the limiter:
 
-```python
+```pycent Improvements
+
+### December 14, 2025 Update
+
+**Rate Limit Response Headers:**
+- All responses now include `X-RateLimit-Limit` header
+- Enables smart client-side retry logic
+- Improves transparency for API consumers
+
+**Full Environment Variable Configuration:**
+- All 9 rate limits now configurable via environment variables
+- Previously only 3 were configurable
+- See Environment Variables section above for complete list
+
+**Adjusted Defaults:**
+- **Model Sync**: Increased from `5 per hour` → `60 per hour` (12x increase)
+  - Reasoning: Development workflows need frequent model catalog updates
+  - Still prevents abuse while enabling normal usage
+- **Document Upload**: Increased from `30 per minute` → `50 per minute` (66% increase)
+  - Reasoning: Batch document uploads are common in workflows
+  - Maintains protection while improving UX
+
+**Configuration Examples:**
+
+Development Mode (More Lenient):
+```bash
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_STREAM=100 per minute
+RATE_LIMIT_MODEL_SYNC=120 per hour
+RATE_LIMIT_UPLOAD=100 per minute
+```
+
+Production Mode (Stricter):
+```bash
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_STREAM=10 per minute
+RATE_LIMIT_MODEL_SYNC=30 per hour
+RATE_LIMIT_UPLOAD=20 per minute
+```
+
+## Rethon
 if settings.rate_limit_enabled:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

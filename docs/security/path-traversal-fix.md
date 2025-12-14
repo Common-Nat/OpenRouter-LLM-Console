@@ -128,3 +128,11 @@ Before deploying this fix to production:
 - [OWASP Path Traversal](https://owasp.org/www-community/attacks/Path_Traversal)
 - [CWE-22: Path Traversal](https://cwe.mitre.org/data/definitions/22.html)
 - [Python pathlib security considerations](https://docs.python.org/3/library/pathlib.html)
+
+## See Also
+
+- [Main README](../../README.md) - Security features section
+- [Backend Documentation](../../backend/README.md) - Backend architecture
+- [Rate Limiting](../../backend/RATE_LIMITING.md) - DDoS protection
+- [Testing Guide](../../TESTING_GUIDE.md) - Security testing
+- [Changelog](../../CHANGELOG.md) - Project history

@@ -91,3 +91,30 @@ pytest tests/test_health.py -v
 - OpenRouter client: [backend/app/services/openrouter.py](backend/app/services/openrouter.py)
 - React components: [frontend/src/components/](frontend/src/components/)
 - Frontend tabs: [frontend/src/tabs/](frontend/src/tabs/)
+
+## Documentation
+
+For detailed information beyond this quick reference:
+
+**Getting Started:**
+- [Main README](../README.md) - Complete project overview, setup, and API reference
+- [Backend README](../backend/README.md) - Detailed backend architecture and patterns
+- [Changelog](../CHANGELOG.md) - Complete project history and updates
+
+**Features:**
+- [Search Feature](../docs/features/search.md) - FTS5-powered message search
+- [Caching](../docs/features/caching.md) - In-memory caching implementation
+- [Error Handling](../docs/features/error-handling.md) - Streaming error infrastructure
+- [Structured Errors](../docs/features/structured-errors.md) - Machine-readable error codes
+
+**Backend Details:**
+- [Rate Limiting](../backend/RATE_LIMITING.md) - Complete rate limiting guide
+- [Database Migrations](../backend/migrations/README.md) - Migration system
+
+**Testing:**
+- [Testing Guide](../TESTING_GUIDE.md) - Comprehensive testing documentation
+- [Testing Quick Reference](../TESTING_QUICK_REFERENCE.md) - Command cheat sheet
+- [Frontend Tests](../frontend/tests/README.md) - Frontend test suite
+
+**Security:**
+- [Path Traversal Fix](../docs/security/path-traversal-fix.md) - Security vulnerability details

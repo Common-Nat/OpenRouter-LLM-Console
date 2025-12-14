@@ -198,3 +198,11 @@ onError: (error) => {
   });
 }
 ```
+
+## See Also
+
+- [Main README](../../README.md) - Project overview and streaming documentation
+- [Structured Errors](structured-errors.md) - Related error response implementation
+- [Backend Documentation](../../backend/README.md) - Backend architecture
+- [Testing Guide](../../TESTING_GUIDE.md) - Testing documentation
+- [Changelog](../../CHANGELOG.md) - Project history

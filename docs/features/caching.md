@@ -146,3 +146,10 @@ All 51 tests pass, including:
 - 7 cache unit tests
 - 5 cache integration tests
 - All existing tests (no regressions)
+
+## See Also
+
+- [Main README](../../README.md) - Project overview and setup
+- [Backend Documentation](../../backend/README.md) - Backend architecture
+- [Testing Guide](../../TESTING_GUIDE.md) - Testing documentation
+- [Changelog](../../CHANGELOG.md) - Project history

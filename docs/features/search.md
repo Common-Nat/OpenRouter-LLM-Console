@@ -189,3 +189,11 @@ sqlite3 console.db < migrations/003_add_fts_search_down.sql
 ```
 
 This removes FTS table and triggers, reverting to pre-search state.
+
+## See Also
+
+- [Main README](../../README.md) - Project overview and API reference
+- [Backend Documentation](../../backend/README.md) - Backend architecture
+- [Database Migrations](../../backend/migrations/README.md) - Migration documentation
+- [Testing Guide](../../TESTING_GUIDE.md) - Testing documentation
+- [Changelog](../../CHANGELOG.md) - Project history

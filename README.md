@@ -114,7 +114,7 @@ All tables use foreign keys with proper cascade/set null behavior. Database sche
   - Standard endpoints (CRUD operations): Moderate limits
   - Read-only endpoints: Lenient limits
   - Returns HTTP 429 with retry information when limits exceeded
-  - See [RATE_LIMITING.md](backend/RATE_LIMITING.md) for detailed configuration
+  - See [Rate Limiting Documentation](backend/RATE_LIMITING.md) for detailed configuration
 - **CORS Protection** – Configurable allowed origins to prevent unauthorized access
 - **Path Traversal Protection** – Filename sanitization for document uploads
 - **API Key Security** – OpenRouter API key never exposed to browser, validated on startup
@@ -261,7 +261,7 @@ Open your browser to the URL displayed by Vite (typically `http://localhost:5173
     - `term1 -term2` – Include term1, exclude term2
     - `prefix*` – Prefix matching
     - `term1 OR term2` – Boolean logic
-  - See [SEARCH_FEATURE.md](SEARCH_FEATURE.md) for complete documentation
+  - See [Search Feature Documentation](docs/features/search.md) for complete details
 
 ### Streaming
 - `GET /api/stream` – Server-Sent Events endpoint for streaming LLM responses
@@ -394,6 +394,32 @@ For production deployment, consider:
 - Delete `console.db` to reset (will lose all data)
 - Check file permissions on database file
 - Verify `DB_PATH` directory is writable
+
+## Detailed Documentation
+
+For more in-depth information about specific features and implementation details:
+
+### Features
+- [Full-Text Search](docs/features/search.md) - FTS5-powered message search with advanced filtering
+- [Caching Implementation](docs/features/caching.md) - In-memory caching for profiles and models
+- [Error Handling](docs/features/error-handling.md) - Comprehensive error handling in streaming
+- [Structured Errors](docs/features/structured-errors.md) - Machine-readable error codes
+
+### Backend
+- [Backend Architecture](backend/README.md) - Detailed backend documentation
+- [Rate Limiting](backend/RATE_LIMITING.md) - Complete rate limiting configuration and usage
+- [Database Migrations](backend/migrations/README.md) - Migration system documentation
+
+### Testing
+- [Testing Guide](TESTING_GUIDE.md) - Comprehensive testing documentation
+- [Testing Quick Reference](TESTING_QUICK_REFERENCE.md) - Quick command reference
+- [Frontend Tests](frontend/tests/README.md) - Frontend test suite documentation
+
+### Security
+- [Path Traversal Fix](docs/security/path-traversal-fix.md) - Security vulnerability resolution
+
+### Project Information
+- [Changelog](CHANGELOG.md) - Complete project history and updates
 
 ## Contributing
 

@@ -44,3 +44,30 @@ async def test_document_qa_requires_api_key(monkeypatch, tmp_path):
 
     assert response.status_code == 400
     assert response.json()["detail"] == "OPENROUTER_API_KEY is not set"
+
+
+@pytest.mark.asyncio
+async def test_document_path_traversal_prevented(monkeypatch, tmp_path):
+    """Test that path traversal attacks are prevented"""
+    monkeypatch.setattr(settings, "db_path", str(tmp_path / "test_documents.db"))
+    monkeypatch.setattr(settings, "uploads_dir", str(tmp_path / "uploads"))
+    monkeypatch.setattr(settings, "openrouter_api_key", "test-key")
+    await dbmod.init_db()
+
+    uploads = tmp_path / "uploads"
+    uploads.mkdir(parents=True, exist_ok=True)
+    (uploads / "example.txt").write_text("Safe document")
+    
+    # Create a file outside uploads directory
+    (tmp_path / "secret.txt").write_text("Secret data")
+
+    # Try path traversal attack
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        response = await ac.post(
+            "/api/documents/../secret.txt/qa",
+            json={"question": "What's in this file?", "model_id": "test-model"}
+        )
+
+    # Should return 404, not expose the secret file
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Document not found"

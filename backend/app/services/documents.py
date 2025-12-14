@@ -33,7 +33,16 @@ def list_documents() -> List[Dict[str, str]]:
 
 
 def load_document(document_id: str) -> Dict[str, str]:
-    file_path = _uploads_dir() / document_id
+    # Prevent path traversal attacks
+    uploads_dir = _uploads_dir()
+    file_path = (uploads_dir / document_id).resolve()
+    
+    # Ensure the resolved path is within the uploads directory
+    try:
+        file_path.relative_to(uploads_dir.resolve())
+    except ValueError:
+        raise FileNotFoundError(f"Document not found: {document_id}")
+    
     if not file_path.is_file():
         raise FileNotFoundError(f"Document not found: {document_id}")
 

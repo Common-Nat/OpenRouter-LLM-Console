@@ -1,5 +1,5 @@
 import logger from '../services/logger.js';
-import { parseApiError } from '../utils/errorHandling.js';
+import { parseApiError, APIError } from '../utils/errorHandling.js';
 
 export async function apiGet(path) {
   try {
@@ -7,7 +7,7 @@ export async function apiGet(path) {
     if (!r.ok) {
       const error = await parseApiError(r);
       logger.apiError(error, path, 'GET');
-      throw new Error(error.message);
+      throw new APIError(error);
     }
     return r.json();
   } catch (err) {
@@ -27,7 +27,7 @@ export async function apiPost(path, body) {
     if (!r.ok) {
       const error = await parseApiError(r);
       logger.apiError(error, path, 'POST');
-      throw new Error(error.message);
+      throw new APIError(error);
     }
     return r.json();
   } catch (err) {
@@ -47,7 +47,7 @@ export async function apiPut(path, body) {
     if (!r.ok) {
       const error = await parseApiError(r);
       logger.apiError(error, path, 'PUT');
-      throw new Error(error.message);
+      throw new APIError(error);
     }
     return r.json();
   } catch (err) {
@@ -63,7 +63,7 @@ export async function apiDelete(path) {
     if (!r.ok) {
       const error = await parseApiError(r);
       logger.apiError(error, path, 'DELETE');
-      throw new Error(error.message);
+      throw new APIError(error);
     }
     return r.text();
   } catch (err) {

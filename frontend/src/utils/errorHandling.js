@@ -4,6 +4,41 @@
  * This demonstrates how to leverage the new error format in React/JavaScript
  */
 
+/**
+ * Custom API Error class that preserves structured error information
+ */
+export class APIError extends Error {
+  constructor(errorData) {
+    super(errorData.message || 'An API error occurred');
+    this.name = 'APIError';
+    this.status = errorData.status;
+    this.code = errorData.code;
+    this.resourceType = errorData.resourceType;
+    this.resourceId = errorData.resourceId;
+    this.details = errorData.details;
+    
+    // Maintains proper stack trace for where error was thrown
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, APIError);
+    }
+  }
+  
+  /**
+   * Convert to plain object for logging
+   */
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      status: this.status,
+      code: this.code,
+      resourceType: this.resourceType,
+      resourceId: this.resourceId,
+      details: this.details,
+    };
+  }
+}
+
 // Error code constants (match backend)
 export const ERROR_CODES = {
   SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
@@ -100,36 +135,39 @@ export async function handleErrorWithRetry(error, retryFn) {
 }
 
 /**
- * Example usage in a React component
+ * Example usage in a React component with API client
  */
-export async function exampleApiCall(sessionId) {
+export async function exampleApiCallWithClient(sessionId) {
   try {
-    const response = await fetch(`/api/sessions/${sessionId}`);
+    // Using the API client which now throws APIError with full context
+    const { apiGet } = await import('../api/client.js');
+    return await apiGet(`/api/sessions/${sessionId}`);
     
-    if (!response.ok) {
-      const error = await parseApiError(response);
-      
+  } catch (err) {
+    // Check if it's an APIError with structured data
+    if (err instanceof APIError) {
       // Show user-friendly message
-      const message = getUserFriendlyMessage(error);
+      const message = getUserFriendlyMessage(err);
       alert(message);
       
-      // Log structured error for debugging
+      // Log structured error for debugging - all fields are preserved!
       console.error('API Error:', {
-        code: error.code,
-        status: error.status,
-        resource: `${error.resourceType}:${error.resourceId}`,
-        details: error.details,
+        code: err.code,
+        status: err.status,
+        resource: `${err.resourceType}:${err.resourceId}`,
+        resourceId: err.resourceId, // ✅ Preserved!
+        details: err.details, // ✅ Preserved!
       });
       
-      // Handle specific errors
-      switch (error.code) {
+      // Handle specific errors based on code
+      switch (err.code) {
         case ERROR_CODES.SESSION_NOT_FOUND:
-          // Redirect to sessions list
+          // Can now access resourceId directly!
+          console.log(`Session ${err.resourceId} not found`);
           window.location.href = '/sessions';
           break;
         
         case ERROR_CODES.MISSING_API_KEY:
-          // Show configuration modal
           showConfigModal();
           break;
         
@@ -141,8 +179,7 @@ export async function exampleApiCall(sessionId) {
       return null;
     }
     
-    return await response.json();
-  } catch (err) {
+    // Network or other errors
     console.error('Network error:', err);
     alert('Network error. Please check your connection.');
     return null;

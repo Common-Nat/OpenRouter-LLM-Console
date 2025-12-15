@@ -244,7 +244,7 @@ async def process_streaming_response(
             event="error",
         )
         return
-    except Exception as e:
+    except Exception:
         logger.exception(
             "Unexpected error during stream processing",
             extra={

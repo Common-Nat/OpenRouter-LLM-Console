@@ -118,7 +118,7 @@ async def stream(
             ),
             media_type="text/event-stream",
         )
-    except Exception as e:
+    except Exception:
         # Log full exception details server-side for debugging
         logger.exception(
             "Failed to initialize streaming response",

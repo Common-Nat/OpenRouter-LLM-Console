@@ -1,4 +1,5 @@
 from typing import AsyncIterator, Optional
+import logging
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 import aiosqlite
@@ -11,6 +12,7 @@ from ...core.logging_config import request_id_ctx_var
 from ...core.ratelimit import limiter, RATE_LIMITS
 from ...core.errors import APIError
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="", tags=["stream"])
 
 
@@ -116,8 +118,18 @@ async def stream(
             ),
             media_type="text/event-stream",
         )
-    except Exception:
-        # If exception occurs before streaming starts, return error stream
+    except Exception as e:
+        # Log full exception details server-side for debugging
+        logger.exception(
+            "Failed to initialize streaming response",
+            extra={
+                "action": "stream_init_error",
+                "session_id": session_id,
+                "model": resolved_model_id,
+                "request_id": request_id_ctx_var.get("-"),
+            },
+        )
+        # Return safe, generic error message to client (no exception details)
         return StreamingResponse(
             _error_stream(
                 "STREAM_ERROR",

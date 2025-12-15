@@ -38,3 +38,54 @@ async def usage_by_session(request: Request, session_id: str, db: aiosqlite.Conn
 async def usage_by_model(db: aiosqlite.Connection = Depends(get_db)):
     rows = await repo.aggregate_usage_by_model(db)
     return [dict(r) for r in rows]
+
+
+@router.get("/timeline")
+@limiter.limit(RATE_LIMITS["usage_logs"])
+async def usage_timeline(
+    request: Request,
+    start_date: str = None,
+    end_date: str = None,
+    granularity: str = "day",
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    """Get time-series usage data grouped by period.
+    
+    Args:
+        start_date: ISO date (YYYY-MM-DD), optional
+        end_date: ISO date (YYYY-MM-DD), optional
+        granularity: 'day', 'week', or 'month' (default: 'day')
+    """
+    rows = await repo.get_usage_timeline(db, start_date, end_date, granularity)
+    return [dict(r) for r in rows]
+
+
+@router.get("/stats")
+@limiter.limit(RATE_LIMITS["usage_logs"])
+async def usage_stats(
+    request: Request,
+    start_date: str = None,
+    end_date: str = None,
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    """Get summary statistics for usage within date range.
+    
+    Args:
+        start_date: ISO date (YYYY-MM-DD), optional
+        end_date: ISO date (YYYY-MM-DD), optional
+    """
+    row = await repo.get_usage_stats(db, start_date, end_date)
+    if row:
+        return dict(row)
+    return {
+        "total_requests": 0,
+        "total_tokens": 0,
+        "total_prompt_tokens": 0,
+        "total_completion_tokens": 0,
+        "total_cost": 0,
+        "avg_cost_per_request": 0,
+        "first_request": None,
+        "last_request": None,
+        "unique_models": 0,
+        "unique_sessions": 0
+    }

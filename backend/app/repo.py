@@ -301,6 +301,92 @@ async def aggregate_usage_by_model(db: aiosqlite.Connection) -> List[aiosqlite.R
     )
     return await cur.fetchall()
 
+async def get_usage_timeline(
+    db: aiosqlite.Connection,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    granularity: str = "day"
+) -> List[aiosqlite.Row]:
+    """Get time-series usage data grouped by period.
+    
+    Args:
+        start_date: ISO date string (YYYY-MM-DD) or None for all time
+        end_date: ISO date string (YYYY-MM-DD) or None for all time
+        granularity: 'day', 'week', or 'month'
+    """
+    # Determine date grouping format
+    if granularity == "week":
+        date_format = "DATE(created_at, 'weekday 0', '-6 days')"  # Start of week (Sunday)
+    elif granularity == "month":
+        date_format = "DATE(created_at, 'start of month')"
+    else:  # day
+        date_format = "DATE(created_at)"
+    
+    # Build WHERE clause
+    where_parts = []
+    params = []
+    if start_date:
+        where_parts.append("DATE(created_at) >= ?")
+        params.append(start_date)
+    if end_date:
+        where_parts.append("DATE(created_at) <= ?")
+        params.append(end_date)
+    
+    where_clause = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
+    
+    query = f"""
+        SELECT 
+            {date_format} as period,
+            SUM(total_tokens) as total_tokens,
+            SUM(prompt_tokens) as prompt_tokens,
+            SUM(completion_tokens) as completion_tokens,
+            SUM(cost_usd) as total_cost,
+            COUNT(*) as request_count
+        FROM usage_logs
+        {where_clause}
+        GROUP BY period
+        ORDER BY period ASC
+    """
+    
+    cur = await db.execute(query, params)
+    return await cur.fetchall()
+
+async def get_usage_stats(
+    db: aiosqlite.Connection,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+) -> Optional[aiosqlite.Row]:
+    """Get summary statistics for usage within date range."""
+    where_parts = []
+    params = []
+    if start_date:
+        where_parts.append("DATE(created_at) >= ?")
+        params.append(start_date)
+    if end_date:
+        where_parts.append("DATE(created_at) <= ?")
+        params.append(end_date)
+    
+    where_clause = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
+    
+    query = f"""
+        SELECT 
+            COUNT(*) as total_requests,
+            SUM(total_tokens) as total_tokens,
+            SUM(prompt_tokens) as total_prompt_tokens,
+            SUM(completion_tokens) as total_completion_tokens,
+            SUM(cost_usd) as total_cost,
+            AVG(cost_usd) as avg_cost_per_request,
+            MIN(created_at) as first_request,
+            MAX(created_at) as last_request,
+            COUNT(DISTINCT model_id) as unique_models,
+            COUNT(DISTINCT session_id) as unique_sessions
+        FROM usage_logs
+        {where_clause}
+    """
+    
+    cur = await db.execute(query, params)
+    return await cur.fetchone()
+
 async def search_messages(
     db: aiosqlite.Connection,
     query: str,

@@ -7,8 +7,9 @@ import ChatTab from "./tabs/ChatTab.jsx";
 import CodeTab from "./tabs/CodeTab.jsx";
 import DocumentsTab from "./tabs/DocumentsTab.jsx";
 import PlaygroundTab from "./tabs/PlaygroundTab.jsx";
+import UsageTab from "./tabs/UsageTab.jsx";
 
-const TABS = ["Chat", "Code", "Documents", "Playground"];
+const TABS = ["Chat", "Code", "Documents", "Playground", "Usage"];
 
 export default function App() {
   const [tab, setTab] = useState("Chat");
@@ -24,6 +25,7 @@ export default function App() {
       case "Code": return <ErrorBoundary context={{ tab: "Code", modelId }}><CodeTab modelId={modelId} profile={selectedProfile} /></ErrorBoundary>;
       case "Documents": return <ErrorBoundary context={{ tab: "Documents", modelId, profileId }}><DocumentsTab modelId={modelId} profileId={profileId} profiles={profiles} selectedProfile={selectedProfile} /></ErrorBoundary>;
       case "Playground": return <ErrorBoundary context={{ tab: "Playground" }}><PlaygroundTab /></ErrorBoundary>;
+      case "Usage": return <ErrorBoundary context={{ tab: "Usage" }}><UsageTab /></ErrorBoundary>;
       default: return null;
     }
   }, [tab, modelId, profileId, profiles, selectedProfile]);

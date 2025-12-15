@@ -225,6 +225,17 @@ Open your browser to the URL displayed by Vite (typically `http://localhost:5173
 - Full control over model, system prompt, temperature, top_p, and other parameters
 - Inspect raw JSON requests and responses for debugging
 
+### Usage Tab
+- **Cost tracking dashboard** with visual analytics
+- **Date range selector**: Today, 7 days, 30 days, all time, or custom range
+- **Time-series charts**: Cost and token usage over time (daily/weekly/monthly views)
+- **Model comparison**: Horizontal bar chart showing top 10 models by cost
+- **Summary statistics**: Total cost, requests, tokens, averages, unique models/sessions
+- **Budget alerts**: Configurable daily/weekly/monthly spending limits with warnings at 80% and critical alerts at 100%
+- **CSV export**: One-click download of detailed usage logs for reporting
+- **Model usage table**: Complete breakdown of all models with token counts and costs
+- See [Usage Dashboard Implementation](USAGE_DASHBOARD_IMPLEMENTATION.md) for detailed documentation
+
 ## API Reference
 
 ### Health
@@ -272,6 +283,8 @@ Open your browser to the URL displayed by Vite (typically `http://localhost:5173
 ### Usage
 - `GET /api/usage` – Get token usage logs with optional filters (`session_id`, `model_id`, `start_date`, `end_date`)
 - `GET /api/usage/summary` – Get usage summary grouped by model (total tokens and costs)
+- `GET /api/usage/timeline` – Get time-series usage data with date grouping (`start_date`, `end_date`, `granularity`: day/week/month)
+- `GET /api/usage/stats` – Get summary statistics for usage within date range (`start_date`, `end_date`)
 
 ### Documents
 - `POST /api/documents/upload` – Upload a document (multipart/form-data, max 10MB, validated extensions)

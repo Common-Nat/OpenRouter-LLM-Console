@@ -76,3 +76,18 @@ export async function apiDelete(path) {
 export async function searchMessages(queryString) {
   return apiGet(`/api/messages/search?${queryString}`);
 }
+
+export async function getUsageTimeline(startDate, endDate, granularity = "day") {
+  const params = new URLSearchParams();
+  if (startDate) params.append("start_date", startDate);
+  if (endDate) params.append("end_date", endDate);
+  params.append("granularity", granularity);
+  return apiGet(`/api/usage/timeline?${params.toString()}`);
+}
+
+export async function getUsageStats(startDate, endDate) {
+  const params = new URLSearchParams();
+  if (startDate) params.append("start_date", startDate);
+  if (endDate) params.append("end_date", endDate);
+  return apiGet(`/api/usage/stats?${params.toString()}`);
+}

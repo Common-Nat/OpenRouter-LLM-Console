@@ -237,7 +237,7 @@ async def process_streaming_response(
         yield sse_data(
             {
                 "status": e.status_code,
-                "message": str(e),
+                "message": "An error occurred while processing your request",
                 "error": "openrouter_error",
                 "request_id": request_id_ctx_var.get("-"),
             },

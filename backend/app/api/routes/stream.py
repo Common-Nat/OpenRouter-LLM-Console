@@ -93,7 +93,7 @@ async def stream(
     resolved_max_tokens = max_tokens if max_tokens is not None else (profile["max_tokens"] if profile else 2048)
 
     resolved_model_id = model_id
-    profile_preset = profile.get("openrouter_preset") if profile else None
+    profile_preset = profile["openrouter_preset"] if profile and "openrouter_preset" in profile.keys() else None
     if profile_preset:
         preset_suffix = profile_preset if str(profile_preset).startswith("@preset/") else f"@preset/{profile_preset}"
         if "@preset/" not in resolved_model_id:
@@ -102,7 +102,7 @@ async def stream(
     # Build messages for OpenRouter from DB
     rows = await repo.list_messages(db, session_id)
     messages = [{"role": r["role"], "content": r["content"]} for r in rows]
-    if profile and profile.get("system_prompt"):
+    if profile and "system_prompt" in profile.keys() and profile["system_prompt"]:
         messages = [{"role": "system", "content": profile["system_prompt"]}, *messages]
 
     try:

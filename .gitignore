@@ -61,6 +61,9 @@ htmlcov/
 .tox/
 .hypothesis/
 
+# Frontend test coverage (generated files)
+frontend/coverage/
+
 # Node.js / Frontend
 node_modules/
 npm-debug.log*

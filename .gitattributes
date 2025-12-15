@@ -1,0 +1,5 @@
+# Mark generated files to exclude from diffs and language stats
+frontend/coverage/** linguist-generated=true
+backend/htmlcov/** linguist-generated=true
+*.pyc linguist-generated=true
+__pycache__/** linguist-generated=true

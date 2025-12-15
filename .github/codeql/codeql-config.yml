@@ -1,0 +1,13 @@
+name: "CodeQL Configuration"
+
+# Exclude generated and third-party code from scanning
+paths-ignore:
+  - "frontend/coverage/**"
+  - "backend/htmlcov/**"
+  - "frontend/dist/**"
+  - "frontend/node_modules/**"
+  - "backend/.venv/**"
+  - "backend/venv/**"
+  - "**/test_*.py"
+  - "**/*.test.js"
+  - "**/*.test.jsx"

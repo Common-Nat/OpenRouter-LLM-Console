@@ -103,15 +103,26 @@ async def stream(
     if profile and profile.get("system_prompt"):
         messages = [{"role": "system", "content": profile["system_prompt"]}, *messages]
 
-    return StreamingResponse(
-        process_streaming_response(
-            session_id=session_id,
-            resolved_model_id=resolved_model_id,
-            messages=messages,
-            resolved_temperature=resolved_temperature,
-            resolved_max_tokens=resolved_max_tokens,
-            resolved_profile_id=resolved_profile_id,
-            db=db,
-        ),
-        media_type="text/event-stream",
-    )
+    try:
+        return StreamingResponse(
+            process_streaming_response(
+                session_id=session_id,
+                resolved_model_id=resolved_model_id,
+                messages=messages,
+                resolved_temperature=resolved_temperature,
+                resolved_max_tokens=resolved_max_tokens,
+                resolved_profile_id=resolved_profile_id,
+                db=db,
+            ),
+            media_type="text/event-stream",
+        )
+    except Exception:
+        # If exception occurs before streaming starts, return error stream
+        return StreamingResponse(
+            _error_stream(
+                "STREAM_ERROR",
+                500,
+                "An error occurred while initializing the stream",
+            ),
+            media_type="text/event-stream",
+        )

@@ -257,7 +257,7 @@ async def process_streaming_response(
         yield sse_data(
             {
                 "status": 500,
-                "message": f"Internal server error: {str(e)}",
+                "message": "An internal error occurred while processing the stream",
                 "error": "internal_error",
                 "request_id": request_id_ctx_var.get("-"),
             },

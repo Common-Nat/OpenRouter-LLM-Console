@@ -57,7 +57,14 @@ class Logger {
     const stored = sessionStorage.getItem('logger_session_id');
     if (stored) return stored;
     
-    const id = `fe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Use cryptographically secure random generation
+    const randomBytes = new Uint8Array(8);
+    crypto.getRandomValues(randomBytes);
+    const randomHex = Array.from(randomBytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    const id = `fe_${Date.now()}_${randomHex}`;
     sessionStorage.setItem('logger_session_id', id);
     return id;
   }
